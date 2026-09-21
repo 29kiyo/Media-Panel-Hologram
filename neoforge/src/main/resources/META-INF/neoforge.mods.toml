@@ -1,0 +1,31 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+issueTrackerURL = "https://github.com/29kiyo/Media-Panel-Hologram/issues"
+license = "LGPL-2.1-or-later"
+
+[[mods]]
+modId = "mediapanelhologram"
+version = "${version}"
+displayName = "Media Panel & Hologram"
+authors = "kiyo"
+displayURL = "https://github.com/29kiyo/Media-Panel-Hologram"
+description = '''
+Thin panel blocks and holograms that display images, videos, music and web pages in Minecraft.
+'''
+
+[[dependencies.mediapanelhologram]]
+modId = "neoforge"
+type = "required"
+versionRange = "[26.2.0,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.mediapanelhologram]]
+modId = "minecraft"
+type = "required"
+versionRange = "[26.2,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[mixins]]
+config = "mediapanelhologram.mixins.json"

@@ -1,0 +1,20 @@
+# Gradle / Loom
+.gradle/
+build/
+run/
+.architectury-transformer/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / crash
+*.log
+hs_err_pid*
