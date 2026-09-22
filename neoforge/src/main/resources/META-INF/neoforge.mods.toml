@@ -30,6 +30,9 @@ side = "BOTH"
 [[mixins]]
 config = "mediapanelhologram.mixins.json"
 
+[[mixins]]
+config = "mcef.mixins.json"
+
 [[dependencies.mediapanelhologram]]
 modId = "geckolib"
 type = "required"
