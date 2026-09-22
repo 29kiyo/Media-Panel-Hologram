@@ -28,8 +28,9 @@ import net.minecraft.client.gui.screens.*;
 import net.minecraft.client.gui.screens.multiplayer.JoinMultiplayerScreen;
 import net.minecraft.client.gui.screens.multiplayer.SafetyScreen;
 import net.minecraft.client.gui.screens.packs.PackSelectionScreen;
+import net.minecraft.client.gui.screens.ManageServerScreen;
+import net.minecraft.client.gui.screens.worldselection.AbstractGameRulesScreen;
 import net.minecraft.client.gui.screens.worldselection.CreateWorldScreen;
-import net.minecraft.client.gui.screens.worldselection.EditGameRulesScreen;
 import net.minecraft.client.gui.screens.worldselection.ExperimentsScreen;
 import net.minecraft.client.gui.screens.worldselection.SelectWorldScreen;
 import org.jetbrains.annotations.Nullable;
@@ -45,12 +46,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Mixin(Minecraft.class)
 public abstract class CefInitMixin {
     @Shadow
-    public abstract void setScreen(@Nullable Screen guiScreen);
+    public abstract void setScreenAndShow(@Nullable Screen guiScreen);
 
     @Unique
     private static AtomicBoolean recursionDetector = new AtomicBoolean(false);
 
-    @Inject(at = @At("HEAD"), method = "setScreen", cancellable = true)
+    @Inject(at = @At("HEAD"), method = "setScreenAndShow", cancellable = true)
     public void redirScreen(Screen guiScreen, CallbackInfo ci) {
         if (!MCEF.isInitialized()) {
             boolean recursionValue = recursionDetector.get();
@@ -65,16 +66,15 @@ public abstract class CefInitMixin {
                     !recursionValue ||
                             guiScreen instanceof TitleScreen ||
                             guiScreen instanceof LevelLoadingScreen ||
-                            guiScreen instanceof ReceivingLevelScreen ||
                             guiScreen instanceof SelectWorldScreen ||
                             guiScreen instanceof DirectJoinServerScreen ||
-                            guiScreen instanceof EditServerScreen ||
+                            guiScreen instanceof ManageServerScreen ||
                             guiScreen instanceof ConnectScreen ||
                             guiScreen instanceof AccessibilityOnboardingScreen ||
                             guiScreen instanceof SafetyScreen ||
                             guiScreen instanceof JoinMultiplayerScreen ||
                             guiScreen instanceof CreateWorldScreen ||
-                            guiScreen instanceof EditGameRulesScreen ||
+                            guiScreen instanceof AbstractGameRulesScreen ||
                             guiScreen instanceof ExperimentsScreen ||
                             guiScreen instanceof PackSelectionScreen ||
                             guiScreen instanceof CreateFlatWorldScreen ||
@@ -96,7 +96,7 @@ public abstract class CefInitMixin {
                 // If the download is not done and didn't fail
                 else if (!MCEFDownloadListener.INSTANCE.isDone() && !MCEFDownloadListener.INSTANCE.isFailed()) {
                     MCEF.getLogger().debug("MCEF has not finished loading, displaying loading screen.");
-                    setScreen(new MCEFDownloaderMenu(guiScreen));
+                    setScreenAndShow(new MCEFDownloaderMenu(guiScreen));
                     ci.cancel();
                 }
                 // If the download failed

@@ -20,14 +20,13 @@
 
 package com.cinemamod.mcef;
 
+import com.mojang.blaze3d.GpuFormat;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.opengl.GlTexture;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
 import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.TextureFormat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.nio.ByteBuffer;
 import java.util.UUID;
@@ -36,24 +35,23 @@ import static org.lwjgl.opengl.GL12.*;
 
 public class MCEFRenderer {
     private final boolean transparent;
+    // Owned by this renderer: closed on resize and in cleanup().
     private GpuTexture texture;
     private int textureWidth = 0;
     private int textureHeight = 0;
-    
-    // ResourceLocation for this renderer's texture
-    private ResourceLocation textureLocation;
+
+    // Identifier under which the wrapper texture is registered with the TextureManager
+    private Identifier textureLocation;
     private MCEFDirectTexture directTexture;
     private boolean textureRegistered = false;
 
     protected MCEFRenderer(boolean transparent) {
         this.transparent = transparent;
-        // Generate a unique ResourceLocation for this renderer
         String uniqueId = UUID.randomUUID().toString().toLowerCase().replace("-", "");
-        this.textureLocation = ResourceLocation.fromNamespaceAndPath("mcef", "browser_" + uniqueId);
+        this.textureLocation = Identifier.fromNamespaceAndPath("mcef", "browser_" + uniqueId);
     }
 
     public void initialize() {
-        // Create and register the direct texture wrapper with Minecraft's TextureManager
         directTexture = new MCEFDirectTexture();
         Minecraft.getInstance().getTextureManager().register(textureLocation, directTexture);
         textureRegistered = true;
@@ -62,34 +60,29 @@ public class MCEFRenderer {
     public GpuTexture getTexture() {
         return texture;
     }
-    
+
     /**
-     * Gets the ResourceLocation that can be used with GuiGraphics and other Minecraft rendering methods.
-     * This ResourceLocation is registered with the TextureManager and points to the browser's texture.
+     * Identifier registered with the TextureManager that points to the browser's texture.
      */
-    public ResourceLocation getTextureLocation() {
+    public Identifier getTextureLocation() {
         return textureLocation;
     }
-    
-    /**
-     * Check if the texture is ready for rendering with GuiGraphics
-     */
+
     public boolean isTextureReady() {
         return texture != null && textureRegistered && directTexture != null;
     }
-    
+
     public int getTextureID() {
-        // For compatibility, return the OpenGL ID if texture exists
         if (texture instanceof GlTexture) {
             return ((GlTexture) texture).glId();
         }
         return 0;
     }
-    
+
     public int getTextureWidth() {
         return textureWidth;
     }
-    
+
     public int getTextureHeight() {
         return textureHeight;
     }
@@ -99,56 +92,51 @@ public class MCEFRenderer {
     }
 
     protected void cleanup() {
-        if (texture != null) {
-            texture.close();
-            texture = null;
+        // Release view (and forget the texture) in the wrapper first, then the texture we own.
+        if (directTexture != null) {
+            directTexture.close();
         }
-        
-        // Unregister from TextureManager
         if (textureRegistered && textureLocation != null) {
             Minecraft.getInstance().getTextureManager().release(textureLocation);
             textureRegistered = false;
         }
+        if (texture != null) {
+            texture.close();
+            texture = null;
+        }
     }
 
     protected void onPaint(ByteBuffer buffer, int width, int height) {
-        // Create or recreate texture if size changed
         if (texture == null || textureWidth != width || textureHeight != height) {
-            if (texture != null) {
-                texture.close();
-            }
-            
-            // Create new GpuTexture using the device
-            String label = "MCEF Browser Texture " + width + "x" + height;
+            GpuTexture old = texture;
+
             texture = RenderSystem.getDevice().createTexture(
-                label,
-                TextureFormat.RGBA8,
-                width,
-                height,
-                1  // mipLevels
+                    "MCEF Browser Texture " + width + "x" + height,
+                    GpuTexture.USAGE_COPY_DST | GpuTexture.USAGE_TEXTURE_BINDING,
+                    GpuFormat.RGBA8_UNORM,
+                    width,
+                    height,
+                    1, // depthOrLayers
+                    1  // mipLevels
             );
-            
-            // Configure texture parameters
-            texture.setTextureFilter(FilterMode.LINEAR, FilterMode.LINEAR, false);
-            texture.setAddressMode(com.mojang.blaze3d.textures.AddressMode.CLAMP_TO_EDGE);
-            
             textureWidth = width;
             textureHeight = height;
-            
-            // Update the direct texture wrapper to point to our new texture
-            if (directTexture != null && texture instanceof GlTexture glTexture) {
-                directTexture.setDirectTextureId(glTexture.glId(), width, height);
+
+            // Point the wrapper at the new texture (closes its old view) before closing the old texture.
+            if (directTexture != null) {
+                directTexture.setTexture(texture);
+            }
+            if (old != null) {
+                old.close();
             }
         }
-        
+
         if (texture instanceof GlTexture glTexture) {
-            // Bind the texture directly using its GL ID
             GlStateManager._bindTexture(glTexture.glId());
             GlStateManager._pixelStore(GL_UNPACK_ROW_LENGTH, width);
             GlStateManager._pixelStore(GL_UNPACK_SKIP_PIXELS, 0);
             GlStateManager._pixelStore(GL_UNPACK_SKIP_ROWS, 0);
-            
-            // Upload the full texture
+
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
                     GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, buffer);
         }
@@ -156,7 +144,6 @@ public class MCEFRenderer {
 
     protected void onPaint(ByteBuffer buffer, int x, int y, int width, int height) {
         if (texture instanceof GlTexture glTexture) {
-            // Bind and update sub-region
             GlStateManager._bindTexture(glTexture.glId());
             glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height, GL_BGRA,
                     GL_UNSIGNED_INT_8_8_8_8_REV, buffer);

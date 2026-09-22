@@ -195,6 +195,16 @@ public final class MCEF {
             return System.getProperty("mcef.java.cef.commit");
         }
 
+        // Monorepo: the java-cef commit is recorded in a resource file (works in dev and in jars).
+        try (java.io.InputStream in = MCEF.class.getClassLoader().getResourceAsStream("mcef-java-cef-commit.txt")) {
+            if (in != null) {
+                String commit = new String(in.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8).trim();
+                if (!commit.isEmpty()) {
+                    return commit;
+                }
+            }
+        }
+
         // Try to get from resources (if loading from a jar)
         Enumeration<URL> resources = MCEF.class.getClassLoader().getResources("META-INF/MANIFEST.MF");
         Map<String, String> commits = new HashMap<>(1);

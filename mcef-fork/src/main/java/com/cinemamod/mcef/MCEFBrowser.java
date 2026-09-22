@@ -24,7 +24,7 @@ import com.cinemamod.mcef.listeners.MCEFCursorChangeListener;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefBrowserOsr;
 import org.cef.callback.CefDragData;
@@ -101,12 +101,12 @@ public class MCEFBrowser extends CefBrowserOsr {
     }
     
     /**
-     * Convenience method to get the ResourceLocation for this browser's texture.
+     * Convenience method to get the Identifier for this browser's texture.
      * This can be used directly with GuiGraphics rendering methods.
      * 
-     * @return The ResourceLocation for this browser's texture, or null if not initialized
+     * @return The Identifier for this browser's texture, or null if not initialized
      */
-    public ResourceLocation getTextureLocation() {
+    public Identifier getTextureLocation() {
         return renderer != null ? renderer.getTextureLocation() : null;
     }
     
@@ -447,10 +447,10 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     public void setCursor(CefCursorType cursorType) {
         if (cursorType == CefCursorType.NONE) {
-            GLFW.glfwSetInputMode(Minecraft.getInstance().getWindow().getWindow(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+            GLFW.glfwSetInputMode(Minecraft.getInstance().getWindow().handle(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
         } else {
-            GLFW.glfwSetInputMode(Minecraft.getInstance().getWindow().getWindow(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            GLFW.glfwSetCursor(Minecraft.getInstance().getWindow().getWindow(), MCEF.getGLFWCursorHandle(cursorType));
+            GLFW.glfwSetInputMode(Minecraft.getInstance().getWindow().handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            GLFW.glfwSetCursor(Minecraft.getInstance().getWindow().handle(), MCEF.getGLFWCursorHandle(cursorType));
         }
     }
 }

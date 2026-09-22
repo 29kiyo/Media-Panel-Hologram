@@ -1,0 +1,35 @@
+architectury {
+    common rootProject.enabled_platforms.split(',')
+}
+
+sourceSets {
+    main {
+        java {
+            // java-cef sources are compiled together with the MCEF glue code.
+            srcDir 'jcef/java'
+            exclude '**/tests/**'
+        }
+    }
+}
+
+dependencies {
+    // Provides Mixin and the @Environment annotations. Do NOT use other Fabric Loader classes.
+    implementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+}
+
+// Upstream generates a class from src/template/java (expands ${compatibility_version}).
+if (file('src/template/java').exists()) {
+    tasks.register('generateJava', Copy) {
+        from file('src/template/java')
+        into layout.buildDirectory.dir('generated/java')
+        expand 'compatibility_version': '21'
+    }
+    sourceSets.main.java.srcDir layout.buildDirectory.dir('generated/java')
+    tasks.named('compileJava') { dependsOn 'generateJava' }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // Report all errors so we can classify them (spike only).
+    options.compilerArgs += ['-Xmaxerrs', '5000', '-Xlint:-removal']
+}

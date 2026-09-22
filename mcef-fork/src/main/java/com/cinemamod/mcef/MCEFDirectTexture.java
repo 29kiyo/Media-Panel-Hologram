@@ -20,90 +20,82 @@
 
 package com.cinemamod.mcef;
 
-import com.mojang.blaze3d.opengl.GlTexture;
-import com.mojang.blaze3d.textures.TextureFormat;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.textures.AddressMode;
+import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.blaze3d.textures.GpuTexture;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 
+import java.util.OptionalDouble;
+
 /**
- * A more efficient texture implementation that directly wraps an existing OpenGL texture ID.
- * This bypasses the normal texture creation pipeline and allows us to use an existing texture
- * directly with Minecraft's rendering system.
+ * Wraps a GpuTexture owned by {@link MCEFRenderer} so it can be registered with Minecraft's TextureManager
+ * and drawn like any other texture. This class owns only the texture view; the GpuTexture itself is
+ * owned (and closed) by the renderer.
  */
 public class MCEFDirectTexture extends AbstractTexture {
     private int width;
     private int height;
-    
+
     public MCEFDirectTexture() {
-        this.defaultBlur = false;
     }
-    
+
     /**
-     * Directly set the texture to an existing OpenGL texture ID.
-     * This is more efficient than creating a new texture and copying data.
-     * 
-     * @param textureId The OpenGL texture ID to wrap
-     * @param width The width of the texture
-     * @param height The height of the texture
+     * Points this wrapper at a texture owned by someone else. The previous view (if any) is closed.
+     * The previous texture must be closed by its owner AFTER this call.
      */
-    public void setDirectTextureId(int textureId, int width, int height) {
-        // If we already have a texture and it's not the same ID, don't close it
-        // (we don't own these textures, MCEFRenderer does)
-        
-        if (textureId > 0) {
-            // Create a custom GlTexture that wraps the existing ID
-            this.texture = new DirectGlTexture(textureId, width, height);
-            this.width = width;
-            this.height = height;
-        } else {
+    public void setTexture(GpuTexture newTexture) {
+        closeView();
+        if (newTexture == null) {
             this.texture = null;
+            this.width = 0;
+            this.height = 0;
+            return;
         }
+        var device = RenderSystem.getDevice();
+        this.texture = newTexture;
+        this.textureView = device.createTextureView(newTexture);
+        if (this.sampler == null) {
+            this.sampler = device.createSampler(
+                    AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE,
+                    FilterMode.LINEAR, FilterMode.LINEAR,
+                    1, OptionalDouble.empty());
+        }
+        this.width = newTexture.getWidth(0);
+        this.height = newTexture.getHeight(0);
     }
-    
+
     public int getWidth() {
         return width;
     }
-    
+
     public int getHeight() {
         return height;
     }
-    
-    @Override
-    public void close() {
-        // Don't close the texture - we don't own it
-        this.texture = null;
+
+    private void closeView() {
+        if (this.textureView != null) {
+            this.textureView.close();
+            this.textureView = null;
+        }
     }
-    
+
+    private void closeSampler() {
+        // createSampler() returns a NEW sampler every call, so we own it.
+        if (this.sampler != null) {
+            this.sampler.close();
+            this.sampler = null;
+        }
+    }
+
     /**
-     * Custom GlTexture implementation that wraps an existing OpenGL texture ID
-     * without managing its lifecycle.
+     * Called by close(); safe to call more than once. Closes the view and the sampler created here.
+     * Never closes the texture itself (owned by MCEFRenderer).
      */
-    private static class DirectGlTexture extends GlTexture {
-        private final int width;
-        private final int height;
-        
-        protected DirectGlTexture(int textureId, int width, int height) {
-            // Call parent constructor with dummy values, then override
-            super("MCEF Direct Texture", TextureFormat.RGBA8, width, height, 1, textureId);
-            this.width = width;
-            this.height = height;
-            // Mark as not closed
-            this.closed = false;
-        }
-        
-        @Override
-        public void close() {
-            // Don't actually delete the texture - we don't own it
-            this.closed = true;
-        }
-        
-        @Override
-        public int getWidth(int mipLevel) {
-            return width >> mipLevel;
-        }
-        
-        @Override
-        public int getHeight(int mipLevel) {
-            return height >> mipLevel;
-        }
+    @Override
+    protected void releaseTextures() {
+        closeView();
+        closeSampler();
+        this.texture = null;
     }
 }

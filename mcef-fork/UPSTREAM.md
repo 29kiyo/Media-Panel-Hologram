@@ -13,3 +13,6 @@ Imported paths:
 The first commit on this directory is the pristine, unmodified import.
 All later local modifications are recorded in the git history.
 Note: CefWindowsShutdownMixin.java has no license header upstream.
+
+- Removed: mcef-fork/jcef/java/tests (upstream also excludes it from the build)
+- Removed: com/cinemamod/mcef/example/ExampleScreen.java (sample screen, not needed)

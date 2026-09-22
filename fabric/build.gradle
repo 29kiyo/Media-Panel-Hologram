@@ -32,7 +32,9 @@ dependencies {
     implementation "com.geckolib:geckolib-fabric-$rootProject.minecraft_version:$rootProject.geckolib_version"
 
     common(project(path: ':common')) { transitive = false }
+    common(project(path: ':mcef-fork')) { transitive = false }
     shadowBundle project(path: ':common', configuration: 'transformProductionFabric')
+    shadowBundle project(path: ':mcef-fork', configuration: 'transformProductionFabric')
 }
 
 processResources {

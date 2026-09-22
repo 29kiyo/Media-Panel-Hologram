@@ -20,10 +20,9 @@
 
 package com.cinemamod.mcef.internal;
 
-import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.network.chat.Component;
@@ -37,20 +36,19 @@ public class MCEFDownloaderMenu extends Screen {
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        renderBackground(graphics, mouseX, mouseY, partialTick);
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        extractBackground(graphics, mouseX, mouseY, partialTick);
         double cx = width / 2d;
         double cy = height / 2d;
 
         double progressBarHeight = 14;
         double progressBarWidth = width / 3d; // TODO: base off screen with (1/3 of screen)
 
-        PoseStack poseStack = graphics.pose();
+        org.joml.Matrix3x2fStack pose = graphics.pose();
 
         /* Draw Progress Bar */
-        poseStack.pushPose();
-        poseStack.translate(cx, cy, 0);
-        poseStack.translate(-progressBarWidth / 2d, -progressBarHeight / 2d, 0);
+        pose.pushMatrix();
+        pose.translate((float) (cx - progressBarWidth / 2d), (float) (cy - progressBarHeight / 2d));
         graphics.fill( // bar border
                 0, 0,
                 (int) progressBarWidth,
@@ -69,48 +67,41 @@ public class MCEFDownloaderMenu extends Screen {
                 (int) progressBarHeight - 4,
                 -1
         );
-        poseStack.popPose();
+        pose.popMatrix();
 
-        // putting this here incase I want to re-add a third line later on
-        // allows me to generalize the code to not care about line count
         String[] text = new String[]{
                 MCEFDownloadListener.INSTANCE.getTask(),
                 Math.round(MCEFDownloadListener.INSTANCE.getProgress() * 100) + "%",
         };
 
-        /* Draw Text */
-        // calculate offset for the top line
+        /* Draw Text (absolute coordinates; same layout as upstream) */
         int oSet = ((font.lineHeight / 2) + ((font.lineHeight + 2) * (text.length + 2))) + 4;
-        poseStack.pushPose();
-        poseStack.translate(
-                (int) (cx),
-                (int) (cy - oSet),
-                0
-        );
+        int baseX = (int) cx;
+        int baseY = (int) (cy - oSet);
+
         // draw menu name
-        graphics.drawString(
+        graphics.text(
                 font,
                 ChatFormatting.GOLD + title.getString(),
-                (int) -(font.width(title.getString()) / 2d), 0,
-                0xFFFFFF
+                baseX + (int) -(font.width(title.getString()) / 2d), baseY,
+                0xFFFFFFFF
         );
         // draw text
+        int y = 0;
         int index = 0;
         for (String s : text) {
             if (index == 1) {
-                poseStack.translate(0, font.lineHeight + 2, 0);
+                y += font.lineHeight + 2;
             }
-
-            poseStack.translate(0, font.lineHeight + 2, 0);
-            graphics.drawString(
+            y += font.lineHeight + 2;
+            graphics.text(
                     font,
                     s,
-                    (int) -(font.width(s) / 2d), 0,
-                    0xFFFFFF
+                    baseX + (int) -(font.width(s) / 2d), baseY + y,
+                    0xFFFFFFFF
             );
             index++;
         }
-        poseStack.popPose();
 
         // TODO: if listener.isFailed(), draw some "Failed to initialize MCEF" text with an "OK" button to proceed
     }
@@ -119,7 +110,7 @@ public class MCEFDownloaderMenu extends Screen {
     public void tick() {
         if (MCEFDownloadListener.INSTANCE.isDone() || MCEFDownloadListener.INSTANCE.isFailed()) {
             onClose();
-            Minecraft.getInstance().setScreen(menu);
+            Minecraft.getInstance().setScreenAndShow(menu);
         }
     }
 

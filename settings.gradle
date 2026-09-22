@@ -10,5 +10,6 @@ pluginManagement {
 rootProject.name = 'mediapanelhologram'
 
 include 'common'
+include 'mcef-fork'
 include 'fabric'
 include 'neoforge'
