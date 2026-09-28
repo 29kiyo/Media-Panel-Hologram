@@ -34,6 +34,7 @@ repositories {
 dependencies {
     neoForge "net.neoforged:neoforge:$rootProject.neoforge_version"
     implementation "com.geckolib:geckolib-neoforge-$rootProject.minecraft_version:$rootProject.geckolib_version"
+    implementation "dev.architectury:architectury-neoforge:$rootProject.architectury_api_version"
 
     common(project(path: ':common')) { transitive = false }
     common(project(path: ':mcef-fork')) { transitive = false }

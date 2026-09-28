@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "mediapanelhologram:item/media_block"
+  }
+}

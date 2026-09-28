@@ -1,0 +1,17 @@
+{
+  "block.mediapanelhologram.panel": "Media Panel",
+  "block.mediapanelhologram.media_block": "Media Block",
+  "itemGroup.mediapanelhologram": "Media Panel & Hologram",
+  "gui.mediapanelhologram.media_block.title": "Media Block",
+  "gui.mediapanelhologram.media_block.url": "URL",
+  "gui.mediapanelhologram.media_block.set_url": "Set URL",
+  "mediapanelhologram.mode.image": "Image",
+  "mediapanelhologram.mode.video": "Video",
+  "mediapanelhologram.mode.music": "Music",
+  "mediapanelhologram.mode.browser": "Browser",
+  "gui.mediapanelhologram.media_block.browser_control": "Browser Control",
+  "gui.mediapanelhologram.media_block.browser_loading": "Waiting for browser...",
+  "gui.mediapanelhologram.media_block.go": "Go",
+  "gui.mediapanelhologram.media_block.zoom_reset": "100%",
+  "gui.mediapanelhologram.media_block.home": "Home"
+}

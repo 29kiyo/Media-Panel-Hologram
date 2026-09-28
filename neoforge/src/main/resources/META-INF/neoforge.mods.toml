@@ -39,3 +39,10 @@ type = "required"
 versionRange = "[5.5,)"
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies.mediapanelhologram]]
+modId = "architectury"
+type = "required"
+versionRange = "[21.0,)"
+ordering = "NONE"
+side = "BOTH"

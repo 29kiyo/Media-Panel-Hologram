@@ -8,4 +8,12 @@ dependencies {
     // Do NOT use other classes from Fabric Loader.
     implementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
     compileOnly "com.geckolib:geckolib-common-$rootProject.minecraft_version:$rootProject.geckolib_version"
+
+    // Architectury API: common-code Block/Item/BlockEntity registration (DeferredRegister).
+    // Plain compileOnly (not modCompileOnly): the `common` architectury multi-loader module
+    // does not get Loom's per-platform "mod" configurations (those only exist on the
+    // fabric()/neoForge() subprojects). The earlier "package does not exist" error was
+    // actually caused by a package-name typo (registry.registry -> registry.registries),
+    // not by using the wrong configuration.
+    compileOnly "dev.architectury:architectury:$rootProject.architectury_api_version"
 }

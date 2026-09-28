@@ -15,6 +15,17 @@ sourceSets {
 dependencies {
     // Provides Mixin and the @Environment annotations. Do NOT use other Fabric Loader classes.
     implementation "net.fabricmc:fabric-loader:$rootProject.fabric_loader_version"
+
+    // IBrowserEngine/IBrowserSession live in :common; MCEFBrowserEngine/
+    // MCEFBrowserSession (mcefbridge package) implement them here. compileOnly
+    // (not implementation) because :common's classes are ALREADY present at
+    // runtime -- both :common and :mcef-fork get shaded into the same
+    // Fabric/NeoForge jar independently (see fabric/neoforge build.gradle's
+    // shadowBundle block), so adding it as `implementation` here would just
+    // duplicate those classes into this project's own jar/classes for no
+    // benefit. Mirrors :common's own compileOnly-only use of the
+    // architectury API dependency for the same reason.
+    compileOnly project(':common')
 }
 
 // Upstream generates a class from src/template/java (expands ${compatibility_version}).
