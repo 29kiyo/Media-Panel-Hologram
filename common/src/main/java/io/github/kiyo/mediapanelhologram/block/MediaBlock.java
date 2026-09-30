@@ -3,6 +3,10 @@ package io.github.kiyo.mediapanelhologram.block;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -99,17 +103,59 @@ import io.github.kiyo.mediapanelhologram.browser.MediaBrowserOpenerProvider;
 public class MediaBlock extends Block implements EntityBlock {
     public static final BooleanProperty CAMOUFLAGED_PROPERTY = BooleanProperty.create("camouflaged");
     public static final IntegerProperty LIGHT_LEVEL_PROPERTY = IntegerProperty.create("light_level", 0, 15);
+    /** Direction the browser screen faces (toward the player who placed it). */
+    public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;
+    /**
+     * Only meaningful when FACING is UP/DOWN: which horizontal direction the
+     * top edge of the screen points to. Encoded as 0=SOUTH, 1=WEST, 2=NORTH, 3=EAST.
+     */
+    public static final IntegerProperty SCREEN_UP_PROPERTY = IntegerProperty.create("screen_up", 0, 3);
+    /** Player pitch (degrees) beyond which the screen goes on the top/bottom face. Tentative value. */
+    private static final float VERTICAL_PITCH_THRESHOLD = 60.0f;
 
     public MediaBlock(Properties properties) {
         super(properties);
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(CAMOUFLAGED_PROPERTY, false)
-                .setValue(LIGHT_LEVEL_PROPERTY, 0));
+                .setValue(LIGHT_LEVEL_PROPERTY, 0)
+                .setValue(FACING, Direction.SOUTH)
+                .setValue(SCREEN_UP_PROPERTY, 0));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(CAMOUFLAGED_PROPERTY, LIGHT_LEVEL_PROPERTY);
+        builder.add(CAMOUFLAGED_PROPERTY, LIGHT_LEVEL_PROPERTY, FACING, SCREEN_UP_PROPERTY);
+    }
+
+    @Override
+    @Nullable
+    public BlockState getStateForPlacement(BlockPlaceContext context) {
+        Direction playerHorizontal = context.getHorizontalDirection();
+        Direction facing = playerHorizontal.getOpposite();
+        int screenUp = 0;
+        var player = context.getPlayer();
+        if (player != null) {
+            float pitch = player.getXRot();
+            if (pitch > VERTICAL_PITCH_THRESHOLD) {
+                facing = Direction.UP;
+                screenUp = encodeScreenUp(playerHorizontal);
+            } else if (pitch < -VERTICAL_PITCH_THRESHOLD) {
+                facing = Direction.DOWN;
+                screenUp = encodeScreenUp(playerHorizontal);
+            }
+        }
+        return this.defaultBlockState()
+                .setValue(FACING, facing)
+                .setValue(SCREEN_UP_PROPERTY, screenUp);
+    }
+
+    private static int encodeScreenUp(Direction horizontal) {
+        return switch (horizontal) {
+            case WEST -> 1;
+            case NORTH -> 2;
+            case EAST -> 3;
+            default -> 0;
+        };
     }
 
     @Override

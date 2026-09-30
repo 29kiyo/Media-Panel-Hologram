@@ -39,6 +39,23 @@ public class MCEFRenderer {
     private GpuTexture texture;
     private int textureWidth = 0;
     private int textureHeight = 0;
+    /**
+     * ACTUAL-RUN BUG FIX (not upstream): true only once a fence queued via
+     * RenderSystem.queueFencedTask, at the moment a texture/sampler is
+     * (re)created, has actually completed -- i.e. the GPU has confirmed the
+     * new resources are usable, not just that the CPU-side calls that
+     * created them returned. Without this, isTextureReady() could report
+     * true (texture/directTexture/textureRegistered all non-null) for a
+     * brand new sampler the very same frame it was created, before the GPU
+     * had actually finished setting it up -- observed as a recurring, actual
+     * "GL_INVALID_OPERATION ... Not a valid sampler name" error every time a
+     * new browser session's texture first appeared (switching to browser
+     * mode, replacing a block, etc.), regardless of which render type or
+     * thread-dispatch fix was tried around it. volatile: read from the
+     * render thread (isTextureReady) and (per queueFencedTask's own
+     * contract) the fence callback may run on a different thread.
+     */
+    private volatile boolean textureConfirmedReady = false;
 
     // Identifier under which the wrapper texture is registered with the TextureManager
     private Identifier textureLocation;
@@ -69,7 +86,7 @@ public class MCEFRenderer {
     }
 
     public boolean isTextureReady() {
-        return texture != null && textureRegistered && directTexture != null;
+        return texture != null && textureRegistered && directTexture != null && textureConfirmedReady;
     }
 
     public int getTextureID() {
@@ -122,6 +139,10 @@ public class MCEFRenderer {
             textureWidth = width;
             textureHeight = height;
 
+            // Not ready until the fence below actually fires -- see the
+            // textureConfirmedReady field's Javadoc.
+            textureConfirmedReady = false;
+
             // Point the wrapper at the new texture (closes its old view) before closing the old texture.
             if (directTexture != null) {
                 directTexture.setTexture(texture);
@@ -129,6 +150,7 @@ public class MCEFRenderer {
             if (old != null) {
                 old.close();
             }
+            com.mojang.blaze3d.systems.RenderSystem.queueFencedTask(() -> textureConfirmedReady = true);
         }
 
         if (texture instanceof GlTexture glTexture) {

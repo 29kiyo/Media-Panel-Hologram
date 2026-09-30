@@ -104,6 +104,17 @@ public final class MediaPanelHologramNeoForge {
                     BlockEntityRendererRegistry.register(
                             ModBlockEntities.MEDIA_BLOCK.get(), MediaBlockEntityRenderer::new));
 
+            // See the matching Fabric-side comment: pruning stale browser
+            // sessions must not happen inside extractRenderState (mid-frame),
+            // or an already-queued draw for a session closed by another
+            // block's extraction can crash with "Sampler ... has been
+            // closed!". Once per tick avoids the race.
+            dev.architectury.event.events.client.ClientTickEvent.CLIENT_POST.register(mc -> {
+                io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.pruneStale();
+                io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.processPendingCloses();
+                io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.processPendingCreations();
+            });
+
             // Spike-only: dev-time MCEF test screen (see MediaPanelHologramNeoForgeClientEvents).
             // Guarded by the env var so it never registers outside the spike check.
             if ("1".equals(System.getenv("MPH_MCEF_TEST"))) {

@@ -1,6 +1,7 @@
 package io.github.kiyo.mediapanelhologram.fabric.client;
 
 import com.cinemamod.mcef.MCEF;
+import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.registry.client.rendering.BlockEntityRendererRegistry;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -16,6 +17,7 @@ import dev.architectury.registry.client.gui.MenuScreenRegistry;
 
 import io.github.kiyo.mediapanelhologram.browser.BrowserEngineProvider;
 import io.github.kiyo.mediapanelhologram.browser.MediaBrowserOpenerProvider;
+import io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager;
 import io.github.kiyo.mediapanelhologram.client.renderer.MediaBlockEntityRenderer;
 import io.github.kiyo.mediapanelhologram.client.screen.MediaBlockScreen;
 import io.github.kiyo.mediapanelhologram.client.screen.MediaBrowserScreen;
@@ -58,6 +60,19 @@ public final class MediaPanelHologramFabricClient implements ClientModInitialize
 
         // Always-on client setup (not gated by the MCEF spike env var below).
         BlockEntityRendererRegistry.register(ModBlockEntities.MEDIA_BLOCK.get(), MediaBlockEntityRenderer::new);
+        // Pruning stale browser sessions is deliberately NOT done inside
+        // extractRenderState (per-BlockEntity, mid-frame): closing a session
+        // there can race with another MediaBlock's already-queued draw for
+        // that same session, since GPU submission for the whole frame happens
+        // after every block's extractRenderState has run. That race produced
+        // an actual "Sampler ... has been closed!" crash on NeoForge when
+        // placing a block facing up/down (see development_status.md). Doing
+        // it once per tick, between frames, avoids the race entirely.
+        ClientTickEvent.CLIENT_POST.register(mc -> {
+            ClientBrowserSessionManager.pruneStale();
+            ClientBrowserSessionManager.processPendingCloses();
+            ClientBrowserSessionManager.processPendingCreations();
+        });
         MenuScreenRegistry.registerScreenFactory(ModMenuTypes.MEDIA_BLOCK.get(), MediaBlockScreen::new);
 
         boolean dev = FabricLoader.getInstance().isDevelopmentEnvironment();

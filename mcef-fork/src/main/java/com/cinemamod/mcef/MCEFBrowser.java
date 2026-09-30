@@ -80,6 +80,19 @@ public class MCEFBrowser extends CefBrowserOsr {
      * CEF is a bit odd and implements mouse buttons as a part of modifier flags.
      */
     private int btnMask = 0;
+    /**
+     * ACTUAL-RUN BUG FIX (not upstream): set true at the very start of
+     * close(). CEF's own render thread can still have an onPaint (or a
+     * cursor-change -> setCursor) call in flight -- or already queued via
+     * Minecraft#execute, per the main-thread-dispatch fix elsewhere in this
+     * class -- at the moment close() runs. Without this flag, such a call
+     * can run AFTER renderer.cleanup() has already closed the GPU
+     * texture/sampler, touching already-closed GL objects. Observed as an
+     * actual "GL_INVALID_OPERATION ... Not a valid sampler name" error
+     * specifically right after breaking a MediaBlock. volatile since it's
+     * read from CEF's thread and written from the main thread.
+     */
+    private volatile boolean closed = false;
 
     // Data relating to popups and graphics
     // Marked as protected in-case a mod wants to extend MCEFBrowser and override the repaint logic
@@ -170,6 +183,36 @@ public class MCEFBrowser extends CefBrowserOsr {
         // nothing to update
         if (dirtyRects.length == 0)
             return;
+
+        // ACTUAL-RUN BUG FIX (not upstream): see the `closed` field's
+        // Javadoc. Must be checked again after the main-thread dispatch
+        // below too, in case close() runs while this call is queued.
+        if (closed) {
+            return;
+        }
+
+        // ACTUAL-RUN BUG FIX (not upstream): this callback fires from CEF's
+        // own render thread, not Minecraft's. Every branch below makes
+        // direct GL calls (GlStateManager._bindTexture/_pixelStore, plus
+        // texture creation inside renderer.onPaint), which are only safe on
+        // Minecraft's render thread. Calling them off-thread raced with
+        // Minecraft's own draw of this same texture and produced two
+        // observed failures on NeoForge: an actual crash
+        // ("IllegalStateException: Sampler ... has been closed!") and,
+        // separately, a flood of "GL_INVALID_OPERATION ... Not a valid
+        // sampler name" debug-log spam. Re-dispatching onto the main thread
+        // via Minecraft#execute (queued, run between ticks) keeps every GL
+        // call here on the thread that owns the GL context. The buffer
+        // itself is a direct ByteBuffer CEF won't reuse before the next
+        // onPaint, so capturing it in the lambda is safe.
+        if (!RenderSystem.isOnRenderThread()) {
+            Minecraft.getInstance().execute(() ->
+                    onPaint(browser, popup, dirtyRects, buffer, width, height));
+            return;
+        }
+        if (closed) {
+            return;
+        }
 
         if (!popup) {
             if (lastWidth != width || lastHeight != height) {
@@ -426,6 +469,10 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     // Closing
     public void close() {
+        // Set first: see the `closed` field's Javadoc. Everything below
+        // this line must be able to assume no further onPaint/setCursor
+        // call will touch the renderer's GL objects after this point.
+        closed = true;
         renderer.cleanup();
         cursorChangeListener.onCursorChange(0);
         super.close(true);
@@ -446,6 +493,26 @@ public class MCEFBrowser extends CefBrowserOsr {
     }
 
     public void setCursor(CefCursorType cursorType) {
+        // ACTUAL-RUN BUG FIX (not upstream): see the `closed` field's
+        // Javadoc -- same race as onPaint's, checked before AND after the
+        // main-thread dispatch below.
+        if (closed) {
+            return;
+        }
+        // ACTUAL-RUN BUG FIX (not upstream): same reasoning as onPaint's --
+        // this can be reached from CEF's own thread via the cursor-change
+        // callback chain, but glfwSetInputMode/glfwSetCursor are only safe
+        // on the thread that owns the GLFW window (Minecraft's main
+        // thread). Observed as intermittent stuck/free mouse cursor during
+        // normal gameplay, including right after placing a block (i.e. not
+        // limited to the already-documented close() cursor-desync case).
+        if (!RenderSystem.isOnRenderThread()) {
+            Minecraft.getInstance().execute(() -> setCursor(cursorType));
+            return;
+        }
+        if (closed) {
+            return;
+        }
         if (cursorType == CefCursorType.NONE) {
             GLFW.glfwSetInputMode(Minecraft.getInstance().getWindow().handle(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
         } else {
