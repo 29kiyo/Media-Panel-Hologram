@@ -93,10 +93,7 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
         BlockEntityRenderState.extractBase(blockEntity, state, crumblingOverlay);
 
 
-        BlockState camouflageState = blockEntity.hasCamouflage()
-                ? ((net.minecraft.world.item.BlockItem) blockEntity.getCamouflageItem().getItem())
-                        .getBlock().defaultBlockState()
-                : null;
+        BlockState camouflageState = blockEntity.getCamouflageState();
 
         if (camouflageState == null) {
             state.modelRenderState.clear();

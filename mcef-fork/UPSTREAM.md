@@ -16,3 +16,11 @@ Note: CefWindowsShutdownMixin.java has no license header upstream.
 
 - Removed: mcef-fork/jcef/java/tests (upstream also excludes it from the build)
 - Removed: com/cinemamod/mcef/example/ExampleScreen.java (sample screen, not needed)
+
+Local modifications (not in upstream; each was a fix for a bug reproduced only in actual runs):
+- MCEFBrowser#onPaint / #setCursor: CEF calls these from its own render thread and they touched GL/GLFW directly.
+  Now checks RenderSystem.isOnRenderThread() and, if off-thread, re-queues via Minecraft.getInstance().execute(...).
+- MCEFBrowser: added volatile `closed` flag. Set at the start of close(); onPaint and setCursor return immediately
+  when set, so late CEF callbacks cannot touch GL resources that were already released.
+- MCEFRenderer: added volatile `textureConfirmedReady` flag. Reset on every (re)creation of the texture and set via
+  RenderSystem.queueFencedTask once the GPU has finished; isTextureReady() also requires it.

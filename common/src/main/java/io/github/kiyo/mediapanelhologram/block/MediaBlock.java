@@ -190,11 +190,12 @@ public class MediaBlock extends Block implements EntityBlock {
 
         if (stack.getItem() instanceof BlockItem blockItem && !mediaBe.hasCamouflage()) {
             if (!level.isClientSide()) {
-                BlockState camouflageDefaultState = blockItem.getBlock().defaultBlockState();
+                BlockState camouflageState = CamouflagePlacementContext.resolveState(blockItem, player, hand, stack, hitResult);
                 mediaBe.setCamouflageItem(new ItemStack(blockItem));
+                mediaBe.setCamouflageState(camouflageState);
                 level.setBlock(pos, state
                         .setValue(CAMOUFLAGED_PROPERTY, true)
-                        .setValue(LIGHT_LEVEL_PROPERTY, camouflageDefaultState.getLightEmission()),
+                        .setValue(LIGHT_LEVEL_PROPERTY, camouflageState.getLightEmission()),
                         Block.UPDATE_CLIENTS);
                 if (!player.getAbilities().instabuild) {
                     stack.shrink(1);

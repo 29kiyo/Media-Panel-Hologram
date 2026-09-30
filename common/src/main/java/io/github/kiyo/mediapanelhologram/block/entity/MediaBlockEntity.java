@@ -53,6 +53,7 @@ import io.github.kiyo.mediapanelhologram.registry.ModBlockEntities;
  */
 public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvider {
     private ItemStack camouflageItem = ItemStack.EMPTY;
+    private BlockState camouflageState = null;
     private String url = "";
     private MediaMode mode = MediaMode.IMAGE;
 
@@ -75,6 +76,27 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
      */
     public void setCamouflageItem(ItemStack stack) {
         this.camouflageItem = stack.copyWithCount(1);
+        if (stack.isEmpty()) {
+            this.camouflageState = null;
+        }
+        this.setChanged();
+    }
+
+    /** Camouflage BlockState (slab half, stair facing, log axis...). Falls back to the item's default state (old saves). */
+    public BlockState getCamouflageState() {
+        if (!hasCamouflage()) {
+            return null;
+        }
+        if (camouflageState != null) {
+            return camouflageState;
+        }
+        return camouflageItem.getItem() instanceof net.minecraft.world.item.BlockItem bi
+                ? bi.getBlock().defaultBlockState() : null;
+    }
+
+    /** Call after setCamouflageItem (clearing the item resets this). */
+    public void setCamouflageState(BlockState state) {
+        this.camouflageState = state;
         this.setChanged();
     }
 
@@ -105,6 +127,9 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
         output.store("Camouflage", ItemStack.OPTIONAL_CODEC, camouflageItem);
+        if (camouflageState != null) {
+            output.store("CamouflageState", BlockState.CODEC, camouflageState);
+        }
         output.putString("Url", url);
         output.putInt("Mode", mode.ordinal());
     }
@@ -113,6 +138,7 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
         camouflageItem = input.read("Camouflage", ItemStack.OPTIONAL_CODEC).orElse(ItemStack.EMPTY);
+        camouflageState = input.read("CamouflageState", BlockState.CODEC).orElse(null);
         url = input.getStringOr("Url", "");
         int modeOrdinal = input.getIntOr("Mode", MediaMode.IMAGE.ordinal());
         MediaMode[] values = MediaMode.values();
