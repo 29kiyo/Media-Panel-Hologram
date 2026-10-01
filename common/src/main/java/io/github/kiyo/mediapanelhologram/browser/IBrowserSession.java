@@ -37,6 +37,9 @@ public interface IBrowserSession {
      */
     void loadUrl(String url);
 
+    /** Runs JavaScript in the page's main frame (backed by CefBrowser#executeJavaScript). */
+    void executeJavaScript(String code);
+
     void resize(int width, int height);
 
     /**

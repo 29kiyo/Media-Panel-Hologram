@@ -110,6 +110,13 @@ public final class MCEFBrowserSession implements IBrowserSession {
     }
 
     @Override
+    public void executeJavaScript(String code) {
+        if (!closed) {
+            browser.executeJavaScript(code, browser.getURL(), 0);
+        }
+    }
+
+    @Override
     public void resize(int width, int height) {
         browser.resize(width, height);
     }
