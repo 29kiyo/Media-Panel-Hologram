@@ -162,6 +162,26 @@ public final class ClientBrowserSessionManager {
             }
             io.github.kiyo.mediapanelhologram.block.QualityPreset quality = qualityOf(pos);
             IBrowserSession session = engine.createSession(url, quality.width(), quality.height());
+            // Apply the quality's base zoom ONCE, when the first load finishes
+            // (zoom set before the page exists may be ignored). Later manual
+            // zoom changes are never overwritten.
+            session.setLoadListener(new io.github.kiyo.mediapanelhologram.browser.BrowserLoadListener() {
+                private boolean applied = false;
+
+                @Override
+                public void onLoadingStateChange(boolean isLoading, boolean canGoBack, boolean canGoForward) {
+                    if (isLoading || applied) {
+                        return;
+                    }
+                    applied = true;
+                    Minecraft.getInstance().execute(() -> {
+                        Entry current = SESSIONS.get(pos);
+                        if (current != null && current.session == session) {
+                            session.setZoomLevel(quality.baseZoomLevel());
+                        }
+                    });
+                }
+            });
             SESSIONS.put(pos, new Entry(session, url, quality));
         }
     }

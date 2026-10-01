@@ -154,7 +154,7 @@ public final class MediaBrowserScreen extends Screen {
                 .bounds(30, ADDRESS_BAR_HEIGHT + 4, 20, 16)
                 .build());
         addOwnWidget(Button.builder(Component.translatable("gui.mediapanelhologram.media_block.zoom_reset"),
-                        b -> setZoom(0.0))
+                        b -> setZoom(baseZoom()))
                 .bounds(54, ADDRESS_BAR_HEIGHT + 4, 50, 16)
                 .build());
 
@@ -171,6 +171,12 @@ public final class MediaBrowserScreen extends Screen {
                         b -> goHome())
                 .bounds(178, ADDRESS_BAR_HEIGHT + 4, 50, 16)
                 .build());
+    }
+
+    /** Reset target: the current block's quality base zoom (0 if the block is gone). */
+    private double baseZoom() {
+        MediaBlockEntity be = findBlockEntity();
+        return be != null ? be.getQuality().baseZoomLevel() : 0.0;
     }
 
     private void adjustZoom(double delta) {
