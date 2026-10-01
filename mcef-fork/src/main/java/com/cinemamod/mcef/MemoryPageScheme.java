@@ -40,9 +40,15 @@ public class MemoryPageScheme implements CefResourceHandler {
             <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
             video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
             #msg{position:absolute;left:8px;top:8px;color:#f66;font:14px sans-serif;z-index:9}</style></head>
-            <body><div id="msg"></div><video id="v" src="__SRC__" autoplay playsinline controls></video>
+            <body><div id="msg"></div><video id="v" data-src="__SRC__" autoplay playsinline controls></video>
+            <script src="/hls.min.js"></script>
             <script>
             var v=document.getElementById('v');
+            var src=v.getAttribute('data-src');
+            if(src.toLowerCase().indexOf('.m3u8')>=0 && window.Hls && Hls.isSupported()){
+              var hls=new Hls(); hls.loadSource(src); hls.attachMedia(v);
+              hls.on(Hls.Events.ERROR,function(e,d){if(d.fatal){document.getElementById('msg').textContent='HLS error '+d.type+' '+d.details+' code='+(d.response?d.response.code:'none')+' url='+(d.url||src);}});
+            } else { v.src=src; }
             v.addEventListener('error',function(){var e=v.error;
               document.getElementById('msg').textContent='Video error '+(e?e.code:'')+(e&&e.message?' '+e.message:'');});
             window.mph={
@@ -57,6 +63,7 @@ public class MemoryPageScheme implements CefResourceHandler {
 
     private final String requestUrl;
     private byte[] data;
+    private String mime = "text/html";
     private int offset;
 
     public MemoryPageScheme(String requestUrl) {
@@ -84,6 +91,19 @@ public class MemoryPageScheme implements CefResourceHandler {
         String html = null;
         try {
             URI uri = URI.create(requestUrl);
+            if ("/hls.min.js".equals(uri.getPath())) {
+                try (java.io.InputStream in = MemoryPageScheme.class.getResourceAsStream("/mph/hls.min.js")) {
+                    if (in != null) {
+                        data = in.readAllBytes();
+                        mime = "application/javascript";
+                        callback.Continue();
+                        return true;
+                    }
+                } catch (java.io.IOException ignored) {
+                }
+                callback.cancel();
+                return false;
+            }
             String query = uri.getRawQuery();
             if ("/file".equals(uri.getPath())) {
                 String src = param(query, "u");
@@ -109,7 +129,7 @@ public class MemoryPageScheme implements CefResourceHandler {
 
     @Override
     public void getResponseHeaders(CefResponse response, IntRef responseLength, StringRef redirectUrl) {
-        response.setMimeType("text/html");
+        response.setMimeType(mime);
         response.setStatus(200);
         response.setStatusText("OK");
         responseLength.set(data != null ? data.length : 0);

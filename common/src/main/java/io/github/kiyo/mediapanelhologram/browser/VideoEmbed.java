@@ -15,7 +15,7 @@ public final class VideoEmbed {
             "^(?:https?://)?(?:www\\.|m\\.)?(?:youtube\\.com/(?:watch\\?(?:.*&)?v=|shorts/|embed/|live/)|youtu\\.be/)"
                     + "([A-Za-z0-9_-]{11})(?:[&?#/].*)?$");
     private static final Pattern DIRECT_FILE = Pattern.compile(
-            "^https?://\\S+\\.(?:mp4|webm|ogv|m4v)(?:[?#]\\S*)?$", Pattern.CASE_INSENSITIVE);
+            "^https?://\\S+\\.(?:mp4|webm|ogv|m4v|m3u8)(?:[?#]\\S*)?$", Pattern.CASE_INSENSITIVE);
 
     private VideoEmbed() {
     }
