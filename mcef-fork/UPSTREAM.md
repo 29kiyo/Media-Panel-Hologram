@@ -30,3 +30,5 @@ Local modifications (not in upstream; each was a fix for a bug reproduced only i
   on any session created after another session was closed.)
 - MemoryPageScheme + MCEF.java: registers a scheme handler for https://mph.local/ that serves the YouTube IFrame
   player page from memory (a data: page is rejected by YouTube with error 153).
+- MemoryPageScheme routes: /player?v=ID (YouTube), /file?u=URL (plain <video> for direct files); both expose window.mph
+  (play/pause/toggle/setVolume/setMuted/setRate/seek/seekBy) for remote control via executeJavaScript.

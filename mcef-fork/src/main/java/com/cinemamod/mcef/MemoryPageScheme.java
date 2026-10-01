@@ -8,15 +8,17 @@ import org.cef.network.CefRequest;
 import org.cef.network.CefResponse;
 
 import java.net.URI;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Serves the YouTube IFrame player page for https://mph.local/player?v=ID from memory,
- * so the page has a real https origin (a data: page gets YouTube error 153).
- * Local addition, not in upstream.
+ * Serves in-memory pages under https://mph.local/ (a data: page gets YouTube error 153).
+ * Routes: /player?v=ID (YouTube IFrame player), /file?u=ENCODED_URL (plain <video> for direct files).
+ * Every page exposes window.mph = {play,pause,toggle,setVolume,setMuted,setRate,seek,seekBy}
+ * for remote control via executeJavaScript. Local addition, not in upstream.
  */
 public class MemoryPageScheme implements CefResourceHandler {
-    private static final String PAGE = """
+    private static final String YOUTUBE_PAGE = """
             <!DOCTYPE html><html><head><meta charset="utf-8">
             <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
             #player{position:absolute;inset:0;width:100%;height:100%}
@@ -33,6 +35,26 @@ public class MemoryPageScheme implements CefResourceHandler {
             </script></body></html>
             """;
 
+    private static final String FILE_PAGE = """
+            <!DOCTYPE html><html><head><meta charset="utf-8">
+            <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
+            video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+            #msg{position:absolute;left:8px;top:8px;color:#f66;font:14px sans-serif;z-index:9}</style></head>
+            <body><div id="msg"></div><video id="v" src="__SRC__" autoplay playsinline controls></video>
+            <script>
+            var v=document.getElementById('v');
+            v.addEventListener('error',function(){var e=v.error;
+              document.getElementById('msg').textContent='Video error '+(e?e.code:'')+(e&&e.message?' '+e.message:'');});
+            window.mph={
+              play:function(){v.play();}, pause:function(){v.pause();},
+              toggle:function(){if(v.paused){v.play();}else{v.pause();}},
+              setVolume:function(x){v.volume=Math.max(0,Math.min(1,x));},
+              setMuted:function(m){v.muted=!!m;}, setRate:function(r){v.playbackRate=r;},
+              seek:function(s){v.currentTime=s;}, seekBy:function(d){v.currentTime=Math.max(0,v.currentTime+d);}
+            };
+            </script></body></html>
+            """;
+
     private final String requestUrl;
     private byte[] data;
     private int offset;
@@ -41,25 +63,46 @@ public class MemoryPageScheme implements CefResourceHandler {
         this.requestUrl = requestUrl;
     }
 
+    private static String param(String rawQuery, String key) {
+        if (rawQuery == null) {
+            return null;
+        }
+        for (String part : rawQuery.split("&")) {
+            if (part.startsWith(key + "=")) {
+                return URLDecoder.decode(part.substring(key.length() + 1), StandardCharsets.UTF_8);
+            }
+        }
+        return null;
+    }
+
+    private static String escapeAttr(String s) {
+        return s.replace("&", "&amp;").replace("\"", "&quot;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
     @Override
     public boolean processRequest(CefRequest request, CefCallback callback) {
-        String id = null;
+        String html = null;
         try {
-            String q = URI.create(requestUrl).getRawQuery();
-            if (q != null) {
-                for (String part : q.split("&")) {
-                    if (part.startsWith("v=")) {
-                        id = part.substring(2);
-                    }
+            URI uri = URI.create(requestUrl);
+            String query = uri.getRawQuery();
+            if ("/file".equals(uri.getPath())) {
+                String src = param(query, "u");
+                if (src != null && src.matches("(?i)^https?://\\S+$")) {
+                    html = FILE_PAGE.replace("__SRC__", escapeAttr(src));
+                }
+            } else {
+                String id = param(query, "v");
+                if (id != null && id.matches("[A-Za-z0-9_-]{11}")) {
+                    html = YOUTUBE_PAGE.replace("__ID__", id);
                 }
             }
         } catch (RuntimeException ignored) {
         }
-        if (id == null || !id.matches("[A-Za-z0-9_-]{11}")) {
+        if (html == null) {
             callback.cancel();
             return false;
         }
-        data = PAGE.replace("__ID__", id).getBytes(StandardCharsets.UTF_8);
+        data = html.getBytes(StandardCharsets.UTF_8);
         callback.Continue();
         return true;
     }
