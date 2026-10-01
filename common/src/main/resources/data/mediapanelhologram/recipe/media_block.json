@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "pattern": [
+    " G ",
+    "IPI",
+    "IRI"
+  ],
+  "key": {
+    "G": "minecraft:glass",
+    "I": "minecraft:iron_ingot",
+    "P": "mediapanelhologram:panel",
+    "R": "minecraft:redstone"
+  },
+  "result": {
+    "id": "mediapanelhologram:media_block",
+    "count": 1
+  }
+}
