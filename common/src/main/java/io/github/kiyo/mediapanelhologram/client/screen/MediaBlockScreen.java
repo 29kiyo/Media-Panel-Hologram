@@ -46,17 +46,20 @@ import io.github.kiyo.mediapanelhologram.network.MediaBlockUpdatePayload;
 @Environment(EnvType.CLIENT)
 public class MediaBlockScreen extends AbstractContainerScreen<MediaBlockMenu> {
     private static final int WIDTH = 200;
-    private static final int HEIGHT = 140;
+    private static final int HEIGHT = 164;
 
     private final List<Renderable> ownWidgets = new ArrayList<>();
 
     private EditBox urlBox;
     private MediaMode selectedMode;
+    private io.github.kiyo.mediapanelhologram.block.QualityPreset selectedQuality;
+    private Button qualityButton;
 
     public MediaBlockScreen(MediaBlockMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title, WIDTH, HEIGHT);
         MediaBlockEntity mediaBe = menu.getBlockEntity();
         this.selectedMode = mediaBe != null ? mediaBe.getMode() : MediaMode.IMAGE;
+        this.selectedQuality = mediaBe != null ? mediaBe.getQuality() : io.github.kiyo.mediapanelhologram.block.QualityPreset.DEFAULT;
     }
 
     /** addRenderableWidget still handles click routing/focus/narration; this
@@ -104,13 +107,25 @@ public class MediaBlockScreen extends AbstractContainerScreen<MediaBlockMenu> {
                 .bounds(leftPos + 10, topPos + 80, imageWidth - 20, 20)
                 .build());
 
+        this.qualityButton = addOwnWidget(Button.builder(qualityLabel(), b -> {
+                    this.selectedQuality = this.selectedQuality.next();
+                    this.qualityButton.setMessage(qualityLabel());
+                    sendUpdate();
+                })
+                .bounds(leftPos + 10, topPos + 104, imageWidth - 20, 20)
+                .build());
+
         addOwnWidget(Button.builder(Component.translatable("gui.done"), b -> this.onClose())
                 .bounds(leftPos + 10, topPos + imageHeight - 30, imageWidth - 20, 20)
                 .build());
     }
 
+    private Component qualityLabel() {
+        return Component.translatable("gui.mediapanelhologram.media_block.quality", this.selectedQuality.label());
+    }
+
     private void sendUpdate() {
-        NetworkManager.sendToServer(new MediaBlockUpdatePayload(this.menu.getBlockPos(), this.urlBox.getValue(), this.selectedMode));
+        NetworkManager.sendToServer(new MediaBlockUpdatePayload(this.menu.getBlockPos(), this.urlBox.getValue(), this.selectedMode, this.selectedQuality));
     }
 
     @Override

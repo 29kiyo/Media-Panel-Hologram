@@ -36,6 +36,9 @@ import java.util.OptionalDouble;
 public class MCEFDirectTexture extends AbstractTexture {
     private int width;
     private int height;
+    // AbstractTexture's constructor pre-fills `sampler` with a SHARED SamplerCache entry;
+    // only a sampler created here may be closed here.
+    private boolean ownsSampler = false;
 
     public MCEFDirectTexture() {
     }
@@ -55,7 +58,8 @@ public class MCEFDirectTexture extends AbstractTexture {
         var device = RenderSystem.getDevice();
         this.texture = newTexture;
         this.textureView = device.createTextureView(newTexture);
-        if (this.sampler == null) {
+        if (!ownsSampler) {
+            ownsSampler = true;
             this.sampler = device.createSampler(
                     AddressMode.CLAMP_TO_EDGE, AddressMode.CLAMP_TO_EDGE,
                     FilterMode.LINEAR, FilterMode.LINEAR,
@@ -82,10 +86,11 @@ public class MCEFDirectTexture extends AbstractTexture {
 
     private void closeSampler() {
         // createSampler() returns a NEW sampler every call, so we own it.
-        if (this.sampler != null) {
+        if (ownsSampler && this.sampler != null) {
             this.sampler.close();
-            this.sampler = null;
         }
+        this.sampler = null;
+        ownsSampler = false;
     }
 
     /**

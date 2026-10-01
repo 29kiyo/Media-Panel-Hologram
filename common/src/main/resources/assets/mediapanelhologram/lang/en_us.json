@@ -13,5 +13,6 @@
   "gui.mediapanelhologram.media_block.browser_loading": "Waiting for browser...",
   "gui.mediapanelhologram.media_block.go": "Go",
   "gui.mediapanelhologram.media_block.zoom_reset": "100%",
-  "gui.mediapanelhologram.media_block.home": "Home"
+  "gui.mediapanelhologram.media_block.home": "Home",
+  "gui.mediapanelhologram.media_block.quality": "Quality: %s"
 }

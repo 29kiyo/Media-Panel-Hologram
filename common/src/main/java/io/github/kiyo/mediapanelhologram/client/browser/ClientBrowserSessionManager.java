@@ -46,8 +46,12 @@ import io.github.kiyo.mediapanelhologram.browser.IBrowserSession;
  */
 @Environment(EnvType.CLIENT)
 public final class ClientBrowserSessionManager {
-    private static final int TEXTURE_WIDTH = 960;
-    private static final int TEXTURE_HEIGHT = 540;
+    /** Quality stored on the block entity (default if the block is gone). */
+    private static io.github.kiyo.mediapanelhologram.block.QualityPreset qualityOf(BlockPos pos) {
+        Minecraft mc = Minecraft.getInstance();
+        return mc.level != null && mc.level.getBlockEntity(pos) instanceof MediaBlockEntity be
+                ? be.getQuality() : io.github.kiyo.mediapanelhologram.block.QualityPreset.DEFAULT;
+    }
 
     private static final Map<BlockPos, Entry> SESSIONS = new HashMap<>();
 
@@ -96,6 +100,11 @@ public final class ClientBrowserSessionManager {
             // effect is that the very first frame after switching modes
             // shows nothing, for a single tick.
             PENDING_CREATE.put(pos, url);
+            return null;
+        } else if (entry.quality != qualityOf(pos)) {
+            // Quality changed: close now (next tick) and recreate through the
+            // same deferred path as a first creation. Never resize in place.
+            queueClose(pos);
             return null;
         } else if (!entry.loadedUrl.equals(url)) {
             entry.session.loadUrl(url);
@@ -151,8 +160,9 @@ public final class ClientBrowserSessionManager {
             if (engine == null || !engine.isAvailable()) {
                 continue;
             }
-            IBrowserSession session = engine.createSession(url, TEXTURE_WIDTH, TEXTURE_HEIGHT);
-            SESSIONS.put(pos, new Entry(session, url));
+            io.github.kiyo.mediapanelhologram.block.QualityPreset quality = qualityOf(pos);
+            IBrowserSession session = engine.createSession(url, quality.width(), quality.height());
+            SESSIONS.put(pos, new Entry(session, url, quality));
         }
     }
 
@@ -231,10 +241,12 @@ public final class ClientBrowserSessionManager {
     private static final class Entry {
         final IBrowserSession session;
         String loadedUrl;
+        final io.github.kiyo.mediapanelhologram.block.QualityPreset quality;
 
-        Entry(IBrowserSession session, String loadedUrl) {
+        Entry(IBrowserSession session, String loadedUrl, io.github.kiyo.mediapanelhologram.block.QualityPreset quality) {
             this.session = session;
             this.loadedUrl = loadedUrl;
+            this.quality = quality;
         }
     }
 }

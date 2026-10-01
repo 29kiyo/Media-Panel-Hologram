@@ -32,7 +32,7 @@ import io.github.kiyo.mediapanelhologram.block.MediaMode;
  * with a small expected player count; revisit with proper chunk-tracking
  * if this ever becomes a real concern.
  */
-public record MediaBlockSyncPayload(BlockPos pos, String url, MediaMode mode) implements CustomPacketPayload {
+public record MediaBlockSyncPayload(BlockPos pos, String url, MediaMode mode, io.github.kiyo.mediapanelhologram.block.QualityPreset quality) implements CustomPacketPayload {
     public static final Type<MediaBlockSyncPayload> TYPE =
             new Type<>(Identifier.fromNamespaceAndPath("mediapanelhologram", "media_block_sync"));
 
@@ -40,6 +40,7 @@ public record MediaBlockSyncPayload(BlockPos pos, String url, MediaMode mode) im
             BlockPos.STREAM_CODEC, MediaBlockSyncPayload::pos,
             ByteBufCodecs.STRING_UTF8, MediaBlockSyncPayload::url,
             ByteBufCodecs.idMapper(i -> MediaMode.values()[i], MediaMode::ordinal), MediaBlockSyncPayload::mode,
+            ByteBufCodecs.idMapper(io.github.kiyo.mediapanelhologram.block.QualityPreset::fromOrdinal, io.github.kiyo.mediapanelhologram.block.QualityPreset::ordinal), MediaBlockSyncPayload::quality,
             MediaBlockSyncPayload::new);
 
     @Override

@@ -42,11 +42,12 @@ public final class ModNetworking {
             Level level = player.level();
             if (level.getBlockEntity(payload.pos()) instanceof MediaBlockEntity mediaBe) {
                 mediaBe.setUrlAndMode(payload.url(), payload.mode());
+                mediaBe.setQuality(payload.quality());
                 level.sendBlockUpdated(payload.pos(), mediaBe.getBlockState(), mediaBe.getBlockState(),
                         Block.UPDATE_CLIENTS);
 
                 MediaBlockSyncPayload syncPayload =
-                        new MediaBlockSyncPayload(payload.pos(), payload.url(), payload.mode());
+                        new MediaBlockSyncPayload(payload.pos(), payload.url(), payload.mode(), payload.quality());
                 if (level instanceof ServerLevel serverLevel) {
                     for (ServerPlayer serverPlayer : serverLevel.getServer().getPlayerList().getPlayers()) {
                         NetworkManager.sendToPlayer(serverPlayer, syncPayload);
@@ -61,6 +62,7 @@ public final class ModNetworking {
             Level level = context.getPlayer().level();
             if (level.getBlockEntity(payload.pos()) instanceof MediaBlockEntity mediaBe) {
                 mediaBe.setUrlAndMode(payload.url(), payload.mode());
+                mediaBe.setQuality(payload.quality());
             }
         });
     }

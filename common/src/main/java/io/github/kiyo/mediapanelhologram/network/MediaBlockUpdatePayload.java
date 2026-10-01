@@ -30,7 +30,7 @@ import io.github.kiyo.mediapanelhologram.block.MediaMode;
  * ByteBuf is a valid supertype for that wildcard. No RegistryFriendlyByteBuf
  * -specific codec is needed since nothing here references registries.
  */
-public record MediaBlockUpdatePayload(BlockPos pos, String url, MediaMode mode) implements CustomPacketPayload {
+public record MediaBlockUpdatePayload(BlockPos pos, String url, MediaMode mode, io.github.kiyo.mediapanelhologram.block.QualityPreset quality) implements CustomPacketPayload {
     // CustomPacketPayload.createType(String) treats its whole argument as a
     // *path* under the "minecraft" namespace (confirmed by an actual crash:
     // "mediapanelhologram:media_block_update" produced the Identifier
@@ -45,6 +45,7 @@ public record MediaBlockUpdatePayload(BlockPos pos, String url, MediaMode mode) 
             BlockPos.STREAM_CODEC, MediaBlockUpdatePayload::pos,
             ByteBufCodecs.STRING_UTF8, MediaBlockUpdatePayload::url,
             ByteBufCodecs.idMapper(i -> MediaMode.values()[i], MediaMode::ordinal), MediaBlockUpdatePayload::mode,
+            ByteBufCodecs.idMapper(io.github.kiyo.mediapanelhologram.block.QualityPreset::fromOrdinal, io.github.kiyo.mediapanelhologram.block.QualityPreset::ordinal), MediaBlockUpdatePayload::quality,
             MediaBlockUpdatePayload::new);
 
     @Override

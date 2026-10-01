@@ -234,7 +234,10 @@ public final class MediaBrowserScreen extends Screen {
     }
 
     private void navigateTo(String url) {
-        NetworkManager.sendToServer(new MediaBlockUpdatePayload(this.pos, url, MediaMode.BROWSER));
+        MediaBlockEntity currentBe = findBlockEntity();
+        io.github.kiyo.mediapanelhologram.block.QualityPreset currentQuality = currentBe != null
+                ? currentBe.getQuality() : io.github.kiyo.mediapanelhologram.block.QualityPreset.DEFAULT;
+        NetworkManager.sendToServer(new MediaBlockUpdatePayload(this.pos, url, MediaMode.BROWSER, currentQuality));
     }
 
     private void navigate() {

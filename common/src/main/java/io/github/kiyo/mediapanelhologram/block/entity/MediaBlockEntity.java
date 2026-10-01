@@ -56,6 +56,7 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
     private BlockState camouflageState = null;
     private String url = "";
     private MediaMode mode = MediaMode.IMAGE;
+    private io.github.kiyo.mediapanelhologram.block.QualityPreset quality = io.github.kiyo.mediapanelhologram.block.QualityPreset.DEFAULT;
 
     public MediaBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.MEDIA_BLOCK.get(), pos, state);
@@ -104,6 +105,15 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
         return url;
     }
 
+    public io.github.kiyo.mediapanelhologram.block.QualityPreset getQuality() {
+        return quality;
+    }
+
+    public void setQuality(io.github.kiyo.mediapanelhologram.block.QualityPreset quality) {
+        this.quality = quality;
+        this.setChanged();
+    }
+
     public MediaMode getMode() {
         return mode;
     }
@@ -132,6 +142,7 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
         }
         output.putString("Url", url);
         output.putInt("Mode", mode.ordinal());
+        output.putInt("Quality", quality.ordinal());
     }
 
     @Override
@@ -143,6 +154,7 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
         int modeOrdinal = input.getIntOr("Mode", MediaMode.IMAGE.ordinal());
         MediaMode[] values = MediaMode.values();
         mode = (modeOrdinal >= 0 && modeOrdinal < values.length) ? values[modeOrdinal] : MediaMode.IMAGE;
+        quality = io.github.kiyo.mediapanelhologram.block.QualityPreset.fromOrdinal(input.getIntOr("Quality", io.github.kiyo.mediapanelhologram.block.QualityPreset.DEFAULT.ordinal()));
     }
 
     @Override

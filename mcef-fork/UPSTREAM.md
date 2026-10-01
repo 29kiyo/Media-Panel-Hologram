@@ -24,3 +24,7 @@ Local modifications (not in upstream; each was a fix for a bug reproduced only i
   when set, so late CEF callbacks cannot touch GL resources that were already released.
 - MCEFRenderer: added volatile `textureConfirmedReady` flag. Reset on every (re)creation of the texture and set via
   RenderSystem.queueFencedTask once the GPU has finished; isTextureReady() also requires it.
+- MCEFDirectTexture: AbstractTexture's constructor pre-fills `sampler` with a SHARED SamplerCache entry, so the
+  upstream-port check `if (sampler == null)` never created our own sampler and releaseTextures() closed the shared one.
+  Added `ownsSampler` flag: only a sampler created here is closed. (Symptom: "Sampler for Sampler0 ... has been closed!"
+  on any session created after another session was closed.)
