@@ -169,6 +169,12 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
             // instead of a blank page, matching the Home-button convention.
             return "https://www.google.com";
         }
+        if (blockEntity.getMode() == MediaMode.VIDEO) {
+            String embed = io.github.kiyo.mediapanelhologram.browser.VideoEmbed.toEmbedUrl(url);
+            if (embed != null) {
+                return embed;
+            }
+        }
         return url;
     }
 

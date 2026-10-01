@@ -28,3 +28,5 @@ Local modifications (not in upstream; each was a fix for a bug reproduced only i
   upstream-port check `if (sampler == null)` never created our own sampler and releaseTextures() closed the shared one.
   Added `ownsSampler` flag: only a sampler created here is closed. (Symptom: "Sampler for Sampler0 ... has been closed!"
   on any session created after another session was closed.)
+- MemoryPageScheme + MCEF.java: registers a scheme handler for https://mph.local/ that serves the YouTube IFrame
+  player page from memory (a data: page is rejected by YouTube with error 153).

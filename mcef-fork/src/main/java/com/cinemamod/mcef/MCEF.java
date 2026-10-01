@@ -88,6 +88,11 @@ public final class MCEF {
                     "mod", "",
                     (browser, frame, url, request) -> new ModScheme(request.getURL())
             );
+            // Local addition: in-memory https://mph.local/ pages (YouTube IFrame player).
+            app.getHandle().registerSchemeHandlerFactory(
+                    "https", "mph.local",
+                    (browser, frame, url, request) -> new MemoryPageScheme(request.getURL())
+            );
 
             // Handle shutdown events, macOS is special
             // These are important; the jcef process will linger around if not done
