@@ -16,4 +16,8 @@ public interface BrowserLoadListener {
 
     default void onLoadError(String errorText, String failedUrl) {
     }
+
+    /** Main-frame load finished with an HTTP error status (>= 400). The page itself is still rendered. */
+    default void onHttpError(int statusCode, String url) {
+    }
 }

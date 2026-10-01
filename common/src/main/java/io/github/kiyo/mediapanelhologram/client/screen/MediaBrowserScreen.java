@@ -298,6 +298,25 @@ public final class MediaBrowserScreen extends Screen {
             int texH = session.getTextureHeight();
             graphics.blit(RenderPipelines.GUI_TEXTURED, session.getTextureLocation(),
                     rect[0], rect[1], 0f, 0f, rect[2], rect[3], texW, texH, texW, texH);
+            String[] httpError = ClientBrowserSessionManager.getHttpError(pos);
+            if (httpError != null) {
+                graphics.fill(rect[0], rect[1], rect[0] + rect[2], rect[1] + 14, 0xE0802020);
+                graphics.text(this.font, Component.translatable(
+                        "gui.mediapanelhologram.media_block.http_error", httpError[0]),
+                        rect[0] + 6, rect[1] + 3, 0xFFFFFFFF);
+            }
+            String[] loadError = ClientBrowserSessionManager.getError(pos);
+            if (loadError != null) {
+                graphics.fill(rect[0], rect[1], rect[0] + rect[2], rect[1] + rect[3], 0xE0101010);
+                int textMaxW = Math.max(10, rect[2] - 32);
+                graphics.text(this.font,
+                        Component.translatable("gui.mediapanelhologram.media_block.load_error"),
+                        rect[0] + 16, rect[1] + 16, 0xFFFF6B6B);
+                graphics.text(this.font, Component.literal(this.font.plainSubstrByWidth(loadError[0], textMaxW)),
+                        rect[0] + 16, rect[1] + 32, 0xFFFFFFFF);
+                graphics.text(this.font, Component.literal(this.font.plainSubstrByWidth(loadError[1], textMaxW)),
+                        rect[0] + 16, rect[1] + 48, 0xFFAAAAAA);
+            }
         } else {
             graphics.text(this.font, Component.translatable("gui.mediapanelhologram.media_block.browser_loading"),
                     10, TOP_BAR_HEIGHT + 10, 0xFFFFFFFF);

@@ -63,14 +63,21 @@ public final class MCEFBrowserSession implements IBrowserSession {
 
             @Override
             public void onLoadEnd(CefBrowser cefBrowser, CefFrame frame, int httpStatusCode) {
-                // Same as onLoadStart -- not currently needed.
+                if (!closed && cefBrowser == browser && loadListener != null
+                        && httpStatusCode >= 400 && (frame == null || frame.isMain())) {
+                    loadListener.onHttpError(httpStatusCode, frame != null ? frame.getURL() : "");
+                }
             }
 
             @Override
             public void onLoadError(CefBrowser cefBrowser, CefFrame frame, ErrorCode errorCode, String errorText,
                     String failedUrl) {
                 if (!closed && cefBrowser == browser && loadListener != null) {
-                    loadListener.onLoadError(errorText, failedUrl);
+                    // ERR_ABORTED = normal navigation interrupted; sub-frame errors are not page errors.
+                    if (errorCode != ErrorCode.ERR_ABORTED && (frame == null || frame.isMain())) {
+                        loadListener.onLoadError(errorCode.name()
+                                + (errorText == null || errorText.isEmpty() ? "" : " - " + errorText), failedUrl);
+                    }
                 }
             }
         });

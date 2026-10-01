@@ -162,6 +162,7 @@ public final class ClientBrowserSessionManager {
             }
             io.github.kiyo.mediapanelhologram.block.QualityPreset quality = qualityOf(pos);
             IBrowserSession session = engine.createSession(url, quality.width(), quality.height());
+            final Entry entry = new Entry(session, url, quality);
             // Apply the quality's base zoom ONCE, when the first load finishes
             // (zoom set before the page exists may be ignored). Later manual
             // zoom changes are never overwritten.
@@ -169,7 +170,25 @@ public final class ClientBrowserSessionManager {
                 private boolean applied = false;
 
                 @Override
+                public void onHttpError(int statusCode, String url) {
+                    entry.httpStatus = statusCode;
+                    entry.httpUrl = url;
+                }
+
+                @Override
+                public void onLoadError(String errorText, String failedUrl) {
+                    entry.errorText = errorText;
+                    entry.failedUrl = failedUrl;
+                }
+
+                @Override
                 public void onLoadingStateChange(boolean isLoading, boolean canGoBack, boolean canGoForward) {
+                    if (isLoading) {
+                        entry.errorText = null;
+                        entry.failedUrl = null;
+                        entry.httpStatus = 0;
+                        entry.httpUrl = null;
+                    }
                     if (isLoading || applied) {
                         return;
                     }
@@ -182,7 +201,7 @@ public final class ClientBrowserSessionManager {
                     });
                 }
             });
-            SESSIONS.put(pos, new Entry(session, url, quality));
+            SESSIONS.put(pos, entry);
         }
     }
 
@@ -232,6 +251,26 @@ public final class ClientBrowserSessionManager {
         }
     }
 
+    /** {errorText, failedUrl} of the last main-frame load error for this block's session, or null. */
+    @Nullable
+    public static String[] getError(BlockPos pos) {
+        Entry entry = SESSIONS.get(pos);
+        if (entry == null || entry.errorText == null) {
+            return null;
+        }
+        return new String[] {entry.errorText, entry.failedUrl == null ? "" : entry.failedUrl};
+    }
+
+    /** {status, url} of the last main-frame HTTP error (>= 400) for this block's session, or null. */
+    @Nullable
+    public static String[] getHttpError(BlockPos pos) {
+        Entry entry = SESSIONS.get(pos);
+        if (entry == null || entry.httpStatus < 400) {
+            return null;
+        }
+        return new String[] {Integer.toString(entry.httpStatus), entry.httpUrl == null ? "" : entry.httpUrl};
+    }
+
     private static void closeSession(Entry entry) {
         entry.session.close();
         Minecraft mc = Minecraft.getInstance();
@@ -261,6 +300,10 @@ public final class ClientBrowserSessionManager {
     private static final class Entry {
         final IBrowserSession session;
         String loadedUrl;
+        volatile String errorText;
+        volatile String failedUrl;
+        volatile int httpStatus;
+        volatile String httpUrl;
         final io.github.kiyo.mediapanelhologram.block.QualityPreset quality;
 
         Entry(IBrowserSession session, String loadedUrl, io.github.kiyo.mediapanelhologram.block.QualityPreset quality) {

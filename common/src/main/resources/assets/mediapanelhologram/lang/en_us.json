@@ -14,5 +14,7 @@
   "gui.mediapanelhologram.media_block.go": "Go",
   "gui.mediapanelhologram.media_block.zoom_reset": "100%",
   "gui.mediapanelhologram.media_block.home": "Home",
-  "gui.mediapanelhologram.media_block.quality": "Quality: %s"
+  "gui.mediapanelhologram.media_block.quality": "Quality: %s",
+  "gui.mediapanelhologram.media_block.load_error": "Failed to load page",
+  "gui.mediapanelhologram.media_block.http_error": "HTTP error %s"
 }
