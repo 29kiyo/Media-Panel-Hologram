@@ -191,6 +191,12 @@ public final class MediaBrowserScreen extends Screen {
         addMediaButton("Vol+", 156, 36, () -> adjustVolume(0.1));
         addMediaButton("Mute", 198, 40, () -> mph("toggleMute()"));
         addMediaButton("Speed", 240, 46, () -> mph("setRate(" + nextDevRate() + ")"));
+        // Playlist buttons are grouped at the right edge (total width 130).
+        int plX = Math.max(290, this.width - 8 - 130);
+        addMediaButton("|<", plX, 24, () -> mph("prev()"));
+        addMediaButton(">|", plX + 26, 24, () -> mph("next()"));
+        addMediaButton("Shuf", plX + 52, 34, () -> mph("toggleShuffle()"));
+        addMediaButton("Queue", plX + 88, 42, () -> mph("toggleQueue()"));
     }
 
     /** Reset target: the current block's quality base zoom (0 if the block is gone). */
@@ -228,12 +234,13 @@ public final class MediaBrowserScreen extends Screen {
               seek:w(function(v,x){v.currentTime=x;}),
               seekBy:w(function(v,x){v.currentTime=Math.max(0,v.currentTime+x);}),
               volumeBy:w(function(v,x){v.volume=Math.max(0,Math.min(1,v.volume+x));}),
-              toggleMute:w(function(v){v.muted=!v.muted;})
+              toggleMute:w(function(v){v.muted=!v.muted;}),
+              next:function(){var b=document.querySelector('.ytp-next-button');if(b){b.click();}}
             };})();}
             """;
 
     private static String mphScript(String call) {
-        return GENERIC_MPH + "window.mph." + call;
+        return GENERIC_MPH + "try{window.mph." + call + ";}catch(e){}";
     }
 
     private void mph(String call) {

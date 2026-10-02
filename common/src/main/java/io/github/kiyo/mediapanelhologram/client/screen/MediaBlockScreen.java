@@ -46,7 +46,7 @@ import io.github.kiyo.mediapanelhologram.network.MediaBlockUpdatePayload;
 @Environment(EnvType.CLIENT)
 public class MediaBlockScreen extends AbstractContainerScreen<MediaBlockMenu> {
     private static final int WIDTH = 200;
-    private static final int HEIGHT = 164;
+    private static final int HEIGHT = 152;
 
     private final List<Renderable> ownWidgets = new ArrayList<>();
 
@@ -104,7 +104,7 @@ public class MediaBlockScreen extends AbstractContainerScreen<MediaBlockMenu> {
 
         addOwnWidget(Button.builder(
                         Component.translatable("gui.mediapanelhologram.media_block.set_url"), b -> sendUpdate())
-                .bounds(leftPos + 10, topPos + 80, imageWidth - 20, 20)
+                .bounds(leftPos + 10, topPos + 74, imageWidth - 20, 20)
                 .build());
 
         this.qualityButton = addOwnWidget(Button.builder(qualityLabel(), b -> {
@@ -112,7 +112,7 @@ public class MediaBlockScreen extends AbstractContainerScreen<MediaBlockMenu> {
                     this.qualityButton.setMessage(qualityLabel());
                     sendUpdate();
                 })
-                .bounds(leftPos + 10, topPos + 104, imageWidth - 20, 20)
+                .bounds(leftPos + 10, topPos + 98, imageWidth - 20, 20)
                 .build());
 
         addOwnWidget(Button.builder(Component.translatable("gui.done"), b -> this.onClose())

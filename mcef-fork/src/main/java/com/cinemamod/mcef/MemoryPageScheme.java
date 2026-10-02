@@ -23,12 +23,19 @@ public class MemoryPageScheme implements CefResourceHandler {
             <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
             #player{position:absolute;inset:0;width:100%;height:100%}
             #msg{position:absolute;left:8px;top:8px;color:#f66;font:14px sans-serif;z-index:9}</style></head>
-            <body><div id="msg"></div><div id="player"></div>
+            <body><div id="msg"></div><div id="player"></div><div id="queue"></div>
+            <style>
+            #queue{display:none;position:absolute;top:0;right:0;bottom:0;width:30%;background:rgba(0,0,0,.78);overflow-y:auto;z-index:8;color:#fff;font:14px sans-serif}
+            #queue .qi{position:relative;margin:6px;border:2px solid transparent;cursor:pointer}
+            #queue .qi.cur{border-color:#4fd1c5}
+            #queue img{display:block;width:100%}
+            #queue .qi span{position:absolute;left:4px;top:2px;background:rgba(0,0,0,.7);padding:0 4px}
+            </style>
             <script src="https://www.youtube.com/iframe_api"></script>
             <script>
             var player;
             function ytErr(c){
-              if(c===101||c===150||c===153){location.replace('https://www.youtube.com/watch?v=__ID__');return;}
+              if(c===101||c===150||c===153){location.replace('__WATCH__');return;}
               document.getElementById('msg').textContent='YouTube player error '+c;
             }
             function ok(){return player&&player.getPlayerState;}
@@ -42,12 +49,42 @@ public class MemoryPageScheme implements CefResourceHandler {
               toggleMute:function(){if(ok()){if(player.isMuted()){player.unMute();}else{player.mute();}}},
               setRate:function(r){if(ok())player.setPlaybackRate(r);},
               seek:function(s){if(ok())player.seekTo(s,true);},
-              seekBy:function(d){if(ok())player.seekTo(Math.max(0,player.getCurrentTime()+d),true);}
+              seekBy:function(d){if(ok())player.seekTo(Math.max(0,player.getCurrentTime()+d),true);},
+              next:function(){if(ok())player.nextVideo();},
+              prev:function(){if(ok())player.previousVideo();},
+              toggleShuffle:function(){if(ok()){shuf=!shuf;player.setShuffle(shuf);setTimeout(function(){if(qOn){renderQueue();}},500);}},
+              toggleQueue:function(){qOn=!qOn;renderQueue();}
             };
+            var qOn=false,shuf=false;
+            function renderQueue(){
+              var q=document.getElementById('queue');
+              q.style.display=qOn?'block':'none';
+              if(!qOn){return;}
+              var list=ok()&&player.getPlaylist?player.getPlaylist():null;
+              var cur=ok()&&player.getPlaylistIndex?player.getPlaylistIndex():-1;
+              q.innerHTML='';
+              if(!list||!list.length){q.textContent='No playlist';return;}
+              list.forEach(function(id,i){
+                var d=document.createElement('div');
+                d.className='qi'+(i===cur?' cur':'');
+                var img=document.createElement('img');
+                img.src='https://i.ytimg.com/vi/'+id+'/mqdefault.jpg';
+                var n=document.createElement('span');
+                n.textContent=String(i+1);
+                d.appendChild(n);d.appendChild(img);
+                d.onclick=function(){if(ok()){player.playVideoAt(i);}};
+                q.appendChild(d);
+              });
+              var c=q.querySelector('.cur');
+              if(c){c.scrollIntoView({block:'center'});}
+            }
             function onYouTubeIframeAPIReady(){
-              player=new YT.Player('player',{width:'100%',height:'100%',videoId:'__ID__',
+              var cfg={width:'100%',height:'100%',
                 playerVars:{autoplay:1,controls:1,rel:0,playsinline:1,origin:'https://mph.local'},
-                events:{onError:function(e){ytErr(e.data);}}});
+                events:{onError:function(e){ytErr(e.data);},onReady:function(){if(player.isMuted()){player.unMute();}},onStateChange:function(){if(qOn){renderQueue();}}}};
+              if('__ID__'){cfg.videoId='__ID__';}
+              if('__LIST__'){cfg.playerVars.listType='playlist';cfg.playerVars.list='__LIST__';}
+              player=new YT.Player('player',cfg);
               if(__FE__>0){setTimeout(function(){ytErr(__FE__);},1500);}
             }
             </script></body></html>
@@ -156,9 +193,17 @@ public class MemoryPageScheme implements CefResourceHandler {
                 }
             } else {
                 String id = param(query, "v");
-                if (id != null && id.matches("[A-Za-z0-9_-]{11}")) {
+                String list = param(query, "list");
+                boolean idOk = id != null && id.matches("[A-Za-z0-9_-]{11}");
+                boolean listOk = list != null && list.matches("[A-Za-z0-9_-]{10,64}");
+                if (idOk || listOk) {
                     String fe = param(query, "fe");
-                    html = YOUTUBE_PAGE.replace("__ID__", id)
+                    String watch = idOk
+                            ? "https://www.youtube.com/watch?v=" + id + (listOk ? "&list=" + list : "")
+                            : "https://www.youtube.com/playlist?list=" + list;
+                    html = YOUTUBE_PAGE.replace("__WATCH__", watch)
+                            .replace("__ID__", idOk ? id : "")
+                            .replace("__LIST__", listOk ? list : "")
                             .replace("__FE__", fe != null && fe.matches("\\d{1,3}") ? fe : "0");
                 }
             }

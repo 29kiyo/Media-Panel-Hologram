@@ -17,7 +17,24 @@ public final class VideoEmbed {
     private static final Pattern DIRECT_FILE = Pattern.compile(
             "^https?://\\S+\\.(?:mp4|webm|ogv|m4v|m3u8)(?:[?#]\\S*)?$", Pattern.CASE_INSENSITIVE);
 
+    private static final Pattern YOUTUBE_LIST = Pattern.compile("[?&]list=([A-Za-z0-9_-]{10,64})");
+    private static final Pattern YOUTUBE_PLAYLIST_PAGE = Pattern.compile(
+            "^(?:https?://)?(?:www\\.|m\\.)?youtube\\.com/playlist\\?.*list=[A-Za-z0-9_-]{10,64}.*$");
+
     private VideoEmbed() {
+    }
+
+    /** YouTube playlist id in the URL, or null. Auto-generated "Mix" lists (RD...) are ignored: the embed cannot play them. */
+    public static String youtubeList(String url) {
+        if (url == null) {
+            return null;
+        }
+        Matcher m = YOUTUBE_LIST.matcher(url.trim());
+        if (!m.find()) {
+            return null;
+        }
+        String list = m.group(1);
+        return list.startsWith("RD") ? null : list;
     }
 
     /** Image-mode page URL (scaled to fill the screen, falls back to the plain page), or null if not http(s). */
@@ -47,8 +64,12 @@ public final class VideoEmbed {
             return null;
         }
         String id = youtubeId(url);
+        String list = youtubeList(url);
         if (id != null) {
-            return "https://mph.local/player?v=" + id;
+            return "https://mph.local/player?v=" + id + (list != null ? "&list=" + list : "");
+        }
+        if (list != null && YOUTUBE_PLAYLIST_PAGE.matcher(url.trim()).matches()) {
+            return "https://mph.local/player?list=" + list;
         }
         String trimmed = url.trim();
         if (DIRECT_FILE.matcher(trimmed).matches()) {
