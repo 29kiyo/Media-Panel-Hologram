@@ -199,10 +199,47 @@ public final class MediaBrowserScreen extends Screen {
         return be != null ? be.getQuality().baseZoomLevel() : 0.0;
     }
 
+    /**
+     * Fallback window.mph for ordinary pages (best effort): operates the largest <video> in the main
+     * frame. Does nothing if there is no video, it sits in a cross-origin iframe, or the site uses
+     * DRM. Pages under https://mph.local/ already define their own window.mph, so this is skipped.
+     */
+    private static final String GENERIC_MPH = """
+            if(!window.mph){(function(){
+            function vid(){var best=null,area=-1;
+              Array.prototype.slice.call(document.querySelectorAll('video')).forEach(function(v){
+                var r=v.getBoundingClientRect();var a=r.width*r.height;if(a>area){area=a;best=v;}});
+              return best;}
+            function w(f){return function(x){var v=vid();if(v){f(v,x);}};}
+            window.mph={
+              play:w(function(v){v.play();}),
+              pause:w(function(v){v.pause();}),
+              toggle:w(function(v){if(v.paused){v.play();}else{v.pause();}}),
+              setVolume:w(function(v,x){v.volume=Math.max(0,Math.min(1,x));}),
+              setMuted:w(function(v,x){v.muted=!!x;}),
+              setRate:w(function(v,x){
+                window.__mphRate=x;v.playbackRate=x;
+                if(!v.__mphHook){v.__mphHook=true;
+                  v.addEventListener('ratechange',function(){
+                    var r=window.__mphRate;
+                    if(r&&r!==1&&v.playbackRate!==r){v.playbackRate=r;}
+                  });}
+              }),
+              seek:w(function(v,x){v.currentTime=x;}),
+              seekBy:w(function(v,x){v.currentTime=Math.max(0,v.currentTime+x);}),
+              volumeBy:w(function(v,x){v.volume=Math.max(0,Math.min(1,v.volume+x));}),
+              toggleMute:w(function(v){v.muted=!v.muted;})
+            };})();}
+            """;
+
+    private static String mphScript(String call) {
+        return GENERIC_MPH + "window.mph." + call;
+    }
+
     private void mph(String call) {
         IBrowserSession session = currentSession();
         if (session != null) {
-            session.executeJavaScript("window.mph&&window.mph." + call);
+            session.executeJavaScript(mphScript(call));
         }
     }
 
@@ -480,7 +517,7 @@ public final class MediaBrowserScreen extends Screen {
                     default -> null;
                 };
                 if (js != null) {
-                    session.executeJavaScript("window.mph&&window.mph." + js);
+                    session.executeJavaScript(mphScript(js));
                     return true;
                 }
             }
