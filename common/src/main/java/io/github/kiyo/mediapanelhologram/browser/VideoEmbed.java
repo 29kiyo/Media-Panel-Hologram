@@ -20,6 +20,18 @@ public final class VideoEmbed {
     private VideoEmbed() {
     }
 
+    /** Image-mode page URL (scaled to fill the screen, falls back to the plain page), or null if not http(s). */
+    public static String toImageEmbedUrl(String url) {
+        if (url == null) {
+            return null;
+        }
+        String trimmed = url.trim();
+        if (trimmed.startsWith("https://mph.local/") || !trimmed.matches("(?i)^https?://\\S+$")) {
+            return null;
+        }
+        return "https://mph.local/image?u=" + URLEncoder.encode(trimmed, StandardCharsets.UTF_8);
+    }
+
     /** Returns the YouTube video id, or null if the URL is not a recognised YouTube video URL. */
     public static String youtubeId(String url) {
         if (url == null) {

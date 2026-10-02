@@ -175,6 +175,12 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
                 return embed;
             }
         }
+        if (blockEntity.getMode() == MediaMode.IMAGE) {
+            String imageEmbed = io.github.kiyo.mediapanelhologram.browser.VideoEmbed.toImageEmbedUrl(url);
+            if (imageEmbed != null) {
+                return imageEmbed;
+            }
+        }
         return url;
     }
 
@@ -238,6 +244,11 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
         poseStack.translate(-0.5f, -0.5f, -0.5f);
     }
 
+    // The browser texture is 16:9 (every QualityPreset), so the screen is a 16:9 strip centred on the
+    // 1x1 block face. A full 1x1 quad squashed the picture horizontally to 56%.
+    private static final float SCREEN_Y0 = (1f - 9f / 16f) / 2f;
+    private static final float SCREEN_Y1 = 1f - SCREEN_Y0;
+
     private static void drawBrowserQuad(PoseStack.Pose pose, VertexConsumer consumer) {
         float z = BROWSER_QUAD_Z_OFFSET;
         int light = LightCoordsUtil.FULL_BRIGHT;
@@ -246,10 +257,10 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
         // in vertex" -- confirmed on both loaders). The quad faces +Z in its
         // own local space (before applyScreenOrientation rotates the whole
         // pose), so that's the normal here too.
-        consumer.addVertex(pose, 0f, 0f, z).setColor(255, 255, 255, 255).setUv(0f, 1f).setLight(light).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(pose, 0f, 0f, 1f);
-        consumer.addVertex(pose, 1f, 0f, z).setColor(255, 255, 255, 255).setUv(1f, 1f).setLight(light).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(pose, 0f, 0f, 1f);
-        consumer.addVertex(pose, 1f, 1f, z).setColor(255, 255, 255, 255).setUv(1f, 0f).setLight(light).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(pose, 0f, 0f, 1f);
-        consumer.addVertex(pose, 0f, 1f, z).setColor(255, 255, 255, 255).setUv(0f, 0f).setLight(light).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(pose, 0f, 0f, 1f);
+        consumer.addVertex(pose, 0f, SCREEN_Y0, z).setColor(255, 255, 255, 255).setUv(0f, 1f).setLight(light).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(pose, 0f, 0f, 1f);
+        consumer.addVertex(pose, 1f, SCREEN_Y0, z).setColor(255, 255, 255, 255).setUv(1f, 1f).setLight(light).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(pose, 0f, 0f, 1f);
+        consumer.addVertex(pose, 1f, SCREEN_Y1, z).setColor(255, 255, 255, 255).setUv(1f, 0f).setLight(light).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(pose, 0f, 0f, 1f);
+        consumer.addVertex(pose, 0f, SCREEN_Y1, z).setColor(255, 255, 255, 255).setUv(0f, 0f).setLight(light).setOverlay(OverlayTexture.NO_OVERLAY).setNormal(pose, 0f, 0f, 1f);
     }
 
     public static class State extends BlockEntityRenderState {

@@ -81,6 +81,20 @@ public class MemoryPageScheme implements CefResourceHandler {
             </script></body></html>
             """;
 
+    private static final String IMAGE_PAGE = """
+            <!DOCTYPE html><html><head><meta charset="utf-8">
+            <meta name="referrer" content="no-referrer">
+            <style>html,body{margin:0;height:100%;background:#000;overflow:hidden}
+            img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}</style></head>
+            <body><img id="i" alt="">
+            <script>
+            var i=document.getElementById('i');
+            var src='__SRC__';
+            i.onerror=function(){location.replace(src);};
+            i.src=src;
+            </script></body></html>
+            """;
+
     private final String requestUrl;
     private byte[] data;
     private String mime = "text/html";
@@ -100,6 +114,11 @@ public class MemoryPageScheme implements CefResourceHandler {
             }
         }
         return null;
+    }
+
+    private static String escapeJs(String s) {
+        return s.replace("\\", "\\\\").replace("'", "\\'").replace("<", "\\u003c").replace(">", "\\u003e")
+                .replace("\n", "").replace("\r", "");
     }
 
     private static String escapeAttr(String s) {
@@ -125,7 +144,12 @@ public class MemoryPageScheme implements CefResourceHandler {
                 return false;
             }
             String query = uri.getRawQuery();
-            if ("/file".equals(uri.getPath())) {
+            if ("/image".equals(uri.getPath())) {
+                String src = param(query, "u");
+                if (src != null && src.matches("(?i)^https?://\\S+$")) {
+                    html = IMAGE_PAGE.replace("__SRC__", escapeJs(src));
+                }
+            } else if ("/file".equals(uri.getPath())) {
                 String src = param(query, "u");
                 if (src != null && src.matches("(?i)^https?://\\S+$")) {
                     html = FILE_PAGE.replace("__SRC__", escapeAttr(src));
