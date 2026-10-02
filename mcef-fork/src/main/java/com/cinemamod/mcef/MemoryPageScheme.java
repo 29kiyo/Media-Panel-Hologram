@@ -27,6 +27,10 @@ public class MemoryPageScheme implements CefResourceHandler {
             <script src="https://www.youtube.com/iframe_api"></script>
             <script>
             var player;
+            function ytErr(c){
+              if(c===101||c===150||c===153){location.replace('https://www.youtube.com/watch?v=__ID__');return;}
+              document.getElementById('msg').textContent='YouTube player error '+c;
+            }
             function ok(){return player&&player.getPlayerState;}
             window.mph={
               play:function(){if(ok())player.playVideo();},
@@ -43,7 +47,8 @@ public class MemoryPageScheme implements CefResourceHandler {
             function onYouTubeIframeAPIReady(){
               player=new YT.Player('player',{width:'100%',height:'100%',videoId:'__ID__',
                 playerVars:{autoplay:1,controls:1,rel:0,playsinline:1,origin:'https://mph.local'},
-                events:{onError:function(e){document.getElementById('msg').textContent='YouTube player error '+e.data;}}});
+                events:{onError:function(e){ytErr(e.data);}}});
+              if(__FE__>0){setTimeout(function(){ytErr(__FE__);},1500);}
             }
             </script></body></html>
             """;
@@ -128,7 +133,9 @@ public class MemoryPageScheme implements CefResourceHandler {
             } else {
                 String id = param(query, "v");
                 if (id != null && id.matches("[A-Za-z0-9_-]{11}")) {
-                    html = YOUTUBE_PAGE.replace("__ID__", id);
+                    String fe = param(query, "fe");
+                    html = YOUTUBE_PAGE.replace("__ID__", id)
+                            .replace("__FE__", fe != null && fe.matches("\\d{1,3}") ? fe : "0");
                 }
             }
         } catch (RuntimeException ignored) {
