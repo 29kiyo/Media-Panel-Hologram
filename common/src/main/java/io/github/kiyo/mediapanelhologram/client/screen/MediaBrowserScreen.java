@@ -326,6 +326,12 @@ public final class MediaBrowserScreen extends Screen {
         }
 
         graphics.fill(0, 0, this.width, this.height, 0xC0101010);
+        if (mouseY < TOP_BAR_HEIGHT) {
+            // The page may have hidden the cursor (e.g. a video player idling) and cannot
+            // learn that the mouse moved onto our own bar, so un-hide it here every frame.
+            GLFW.glfwSetInputMode(Minecraft.getInstance().getWindow().handle(),
+                    GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+        }
         graphics.fill(0, 0, this.width, TOP_BAR_HEIGHT, 0xFF202225);
         MediaBlockEntity modeBe = findBlockEntity();
         if (modeBe != null) {
