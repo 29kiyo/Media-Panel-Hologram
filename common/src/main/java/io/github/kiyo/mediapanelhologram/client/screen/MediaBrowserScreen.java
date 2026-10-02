@@ -91,9 +91,19 @@ import io.github.kiyo.mediapanelhologram.network.MediaBlockUpdatePayload;
  */
 @Environment(EnvType.CLIENT)
 public final class MediaBrowserScreen extends Screen {
+    /** Dev only: F6-F10 call window.mph.* on mph.local pages (set env MPH_JS_TEST=1). */
+    private static final boolean DEV_JS_TEST = "1".equals(System.getenv("MPH_JS_TEST"));
+    private static final double[] DEV_RATES = {1.0, 1.5, 2.0, 0.5};
+    private int devRateIndex = 0;
+
+    private double nextDevRate() {
+        devRateIndex = (devRateIndex + 1) % DEV_RATES.length;
+        return DEV_RATES[devRateIndex];
+    }
     private static final int ADDRESS_BAR_HEIGHT = 24;
     private static final int NAV_ROW_HEIGHT = 24;
-    private static final int TOP_BAR_HEIGHT = ADDRESS_BAR_HEIGHT + NAV_ROW_HEIGHT;
+    private static final int MEDIA_ROW_HEIGHT = 24;
+    private static final int TOP_BAR_HEIGHT = ADDRESS_BAR_HEIGHT + NAV_ROW_HEIGHT + MEDIA_ROW_HEIGHT;
 
     private static final double ZOOM_STEP = 1.0;
     private static final double ZOOM_MIN = -9.0;
@@ -136,7 +146,8 @@ public final class MediaBrowserScreen extends Screen {
         this.ownWidgets.clear();
 
         MediaBlockEntity mediaBe = findBlockEntity();
-        String initialUrl = mediaBe != null ? MediaBlockEntityRenderer.resolveContentUrl(mediaBe) : "";
+        String initialUrl = mediaBe != null ? (mediaBe.getMode() == MediaMode.VIDEO ? mediaBe.getUrl()
+                : MediaBlockEntityRenderer.resolveContentUrl(mediaBe)) : "";
 
         this.urlBox = addOwnWidget(new EditBox(this.font, 8, 4, this.width - 90, 16,
                 Component.translatable("gui.mediapanelhologram.media_block.url")));
@@ -171,12 +182,38 @@ public final class MediaBrowserScreen extends Screen {
                         b -> goHome())
                 .bounds(178, ADDRESS_BAR_HEIGHT + 4, 50, 16)
                 .build());
+
+        // Media control row: calls window.mph.* (defined by the mph.local player pages).
+        addMediaButton("-10", 8, 30, () -> mph("seekBy(-10)"));
+        addMediaButton("Play", 40, 40, () -> mph("toggle()"));
+        addMediaButton("+10", 82, 30, () -> mph("seekBy(10)"));
+        addMediaButton("Vol-", 118, 36, () -> adjustVolume(-0.1));
+        addMediaButton("Vol+", 156, 36, () -> adjustVolume(0.1));
+        addMediaButton("Mute", 198, 40, () -> mph("toggleMute()"));
+        addMediaButton("Speed", 240, 46, () -> mph("setRate(" + nextDevRate() + ")"));
     }
 
     /** Reset target: the current block's quality base zoom (0 if the block is gone). */
     private double baseZoom() {
         MediaBlockEntity be = findBlockEntity();
         return be != null ? be.getQuality().baseZoomLevel() : 0.0;
+    }
+
+    private void mph(String call) {
+        IBrowserSession session = currentSession();
+        if (session != null) {
+            session.executeJavaScript("window.mph&&window.mph." + call);
+        }
+    }
+
+    private void addMediaButton(String label, int x, int w, Runnable action) {
+        addOwnWidget(Button.builder(Component.literal(label), b -> action.run())
+                .bounds(x, ADDRESS_BAR_HEIGHT + NAV_ROW_HEIGHT + 4, w, 16)
+                .build());
+    }
+
+    private void adjustVolume(double delta) {
+        mph("volumeBy(" + delta + ")");
     }
 
     private void adjustZoom(double delta) {
@@ -243,7 +280,7 @@ public final class MediaBrowserScreen extends Screen {
         MediaBlockEntity currentBe = findBlockEntity();
         io.github.kiyo.mediapanelhologram.block.QualityPreset currentQuality = currentBe != null
                 ? currentBe.getQuality() : io.github.kiyo.mediapanelhologram.block.QualityPreset.DEFAULT;
-        NetworkManager.sendToServer(new MediaBlockUpdatePayload(this.pos, url, MediaMode.BROWSER, currentQuality));
+        NetworkManager.sendToServer(new MediaBlockUpdatePayload(this.pos, url, currentBe != null ? currentBe.getMode() : MediaMode.BROWSER, currentQuality));
     }
 
     private void navigate() {
@@ -290,6 +327,12 @@ public final class MediaBrowserScreen extends Screen {
 
         graphics.fill(0, 0, this.width, this.height, 0xC0101010);
         graphics.fill(0, 0, this.width, TOP_BAR_HEIGHT, 0xFF202225);
+        MediaBlockEntity modeBe = findBlockEntity();
+        if (modeBe != null) {
+            Component modeLabel = Component.translatable(modeBe.getMode().translationKey());
+            graphics.text(this.font, modeLabel, this.width - 8 - this.font.width(modeLabel),
+                    ADDRESS_BAR_HEIGHT + 8, 0xFF4FD1C5);
+        }
 
         IBrowserSession session = currentSession();
         if (session != null && session.isTextureReady()) {
@@ -420,6 +463,21 @@ public final class MediaBrowserScreen extends Screen {
         }
         IBrowserSession session = currentSession();
         if (session != null) {
+            if (DEV_JS_TEST) {
+                String js = switch (event.key()) {
+                    case GLFW.GLFW_KEY_F6 -> "toggle()";
+                    case GLFW.GLFW_KEY_F7 -> "seekBy(10)";
+                    case GLFW.GLFW_KEY_F8 -> "setVolume(0.2)";
+                    case GLFW.GLFW_KEY_F9 -> "setVolume(1)";
+                    case GLFW.GLFW_KEY_F10 -> "setRate(" + nextDevRate() + ")";
+                    case GLFW.GLFW_KEY_F5 -> "seekBy(-10)";
+                    default -> null;
+                };
+                if (js != null) {
+                    session.executeJavaScript("window.mph&&window.mph." + js);
+                    return true;
+                }
+            }
             session.sendKeyPress(event.key(), event.scancode(), event.modifiers());
         }
         return true;

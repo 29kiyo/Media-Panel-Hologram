@@ -228,7 +228,7 @@ public class MediaBlock extends Block implements EntityBlock {
             return InteractionResult.SUCCESS;
         }
 
-        if (mediaBe.getMode() == MediaMode.BROWSER) {
+        if (mediaBe.getMode() == MediaMode.BROWSER || mediaBe.getMode() == MediaMode.VIDEO) {
             if (level.isClientSide()) {
                 MediaBrowserOpenerProvider.open(pos);
             }

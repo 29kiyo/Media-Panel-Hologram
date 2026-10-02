@@ -27,6 +27,19 @@ public class MemoryPageScheme implements CefResourceHandler {
             <script src="https://www.youtube.com/iframe_api"></script>
             <script>
             var player;
+            function ok(){return player&&player.getPlayerState;}
+            window.mph={
+              play:function(){if(ok())player.playVideo();},
+              pause:function(){if(ok())player.pauseVideo();},
+              toggle:function(){if(ok()){if(player.getPlayerState()===1){player.pauseVideo();}else{player.playVideo();}}},
+              setVolume:function(x){if(ok())player.setVolume(Math.round(Math.max(0,Math.min(1,x))*100));},
+              setMuted:function(m){if(ok()){if(m){player.mute();}else{player.unMute();}}},
+              volumeBy:function(d){if(ok())player.setVolume(Math.max(0,Math.min(100,player.getVolume()+d*100)));},
+              toggleMute:function(){if(ok()){if(player.isMuted()){player.unMute();}else{player.mute();}}},
+              setRate:function(r){if(ok())player.setPlaybackRate(r);},
+              seek:function(s){if(ok())player.seekTo(s,true);},
+              seekBy:function(d){if(ok())player.seekTo(Math.max(0,player.getCurrentTime()+d),true);}
+            };
             function onYouTubeIframeAPIReady(){
               player=new YT.Player('player',{width:'100%',height:'100%',videoId:'__ID__',
                 playerVars:{autoplay:1,controls:1,rel:0,playsinline:1,origin:'https://mph.local'},
@@ -56,6 +69,8 @@ public class MemoryPageScheme implements CefResourceHandler {
               toggle:function(){if(v.paused){v.play();}else{v.pause();}},
               setVolume:function(x){v.volume=Math.max(0,Math.min(1,x));},
               setMuted:function(m){v.muted=!!m;}, setRate:function(r){v.playbackRate=r;},
+              volumeBy:function(d){v.volume=Math.max(0,Math.min(1,v.volume+d));},
+              toggleMute:function(){v.muted=!v.muted;},
               seek:function(s){v.currentTime=s;}, seekBy:function(d){v.currentTime=Math.max(0,v.currentTime+d);}
             };
             </script></body></html>

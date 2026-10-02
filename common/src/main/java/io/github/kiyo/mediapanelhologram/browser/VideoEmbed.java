@@ -31,7 +31,7 @@ public final class VideoEmbed {
 
     /** Player page URL for this video URL, or null if no embed applies. */
     public static String toEmbedUrl(String url) {
-        if (url == null) {
+        if (url == null || url.trim().startsWith("https://mph.local/")) {
             return null;
         }
         String id = youtubeId(url);
