@@ -34,6 +34,11 @@ public class MemoryPageScheme implements CefResourceHandler {
             <script src="https://www.youtube.com/iframe_api"></script>
             <script>
             var player;
+            window.addEventListener('error',function(e){console.log('MPH-YT jserror '+(e.message||'')+' '+(e.target&&e.target.src?e.target.src:''));},true);
+            setTimeout(function(){if(!player){document.getElementById('msg').textContent='YouTube API did not start';console.log('MPH-YT watchdog: player not created');}},6000);
+            // When this page is opened from another player page, the API script is already loaded and the
+            // official onYouTubeIframeAPIReady callback is never called; poll for YT.Player instead.
+            var healT=setInterval(function(){if(player){clearInterval(healT);return;}if(window.YT&&YT.Player){clearInterval(healT);onYouTubeIframeAPIReady();}},150);
             function ytErr(c){
               if(c===101||c===150||c===153){location.replace('__WATCH__');return;}
               document.getElementById('msg').textContent='YouTube player error '+c;
@@ -78,7 +83,7 @@ public class MemoryPageScheme implements CefResourceHandler {
               var c=q.querySelector('.cur');
               if(c){c.scrollIntoView({block:'center'});}
             }
-            function onYouTubeIframeAPIReady(){
+            function onYouTubeIframeAPIReady(){if(player){return;}
               var cfg={width:'100%',height:'100%',
                 playerVars:{autoplay:1,controls:1,rel:0,playsinline:1,origin:'https://mph.local'},
                 events:{onError:function(e){ytErr(e.data);},onReady:function(){if(player.isMuted()){player.unMute();}},onStateChange:function(){if(qOn){renderQueue();}}}};
