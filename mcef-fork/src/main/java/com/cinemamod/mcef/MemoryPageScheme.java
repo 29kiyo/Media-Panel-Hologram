@@ -58,7 +58,7 @@ public class MemoryPageScheme implements CefResourceHandler {
               next:function(){if(ok())player.nextVideo();},
               prev:function(){if(ok())player.previousVideo();},
               toggleShuffle:function(){if(ok()){shuf=!shuf;player.setShuffle(shuf);setTimeout(function(){if(qOn){renderQueue();}},500);}},
-              toggleQueue:function(){qOn=!qOn;renderQueue();}
+              toggleQueue:function(){qOn=!qOn;renderQueue();},toggleCaptions:function(){try{if(window.__mphCap){window.__mphCap=false;try{player.setOption('captions','track',{});}catch(e){}try{player.unloadModule('captions');}catch(e){}}else{window.__mphCap=true;player.loadModule('captions');setTimeout(function(){var l=player.getOption('captions','tracklist')||[];if(l.length){player.setOption('captions','track',{languageCode:l[0].languageCode});}},400);}}catch(e){}}
             };
             var qOn=false,shuf=false;
             function renderQueue(){

@@ -191,8 +191,9 @@ public final class MediaBrowserScreen extends Screen {
         addMediaButton("Vol+", 156, 36, () -> adjustVolume(0.1));
         addMediaButton("Mute", 198, 40, () -> mph("toggleMute()"));
         addMediaButton("Speed", 240, 46, () -> mph("setRate(" + nextDevRate() + ")"));
+        addMediaButton("CC", 288, 30, () -> mph("toggleCaptions()"));
         // Playlist buttons are grouped at the right edge (total width 130).
-        int plX = Math.max(290, this.width - 8 - 130);
+        int plX = Math.max(322, this.width - 8 - 130);
         addMediaButton("|<", plX, 24, () -> mph("prev()"));
         addMediaButton(">|", plX + 26, 24, () -> mph("next()"));
         addMediaButton("Shuf", plX + 52, 34, () -> mph("toggleShuffle()"));
