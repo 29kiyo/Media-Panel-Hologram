@@ -34,3 +34,5 @@ Local modifications (not in upstream; each was a fix for a bug reproduced only i
   (play/pause/toggle/setVolume/setMuted/setRate/seek/seekBy) for remote control via executeJavaScript.
 - Bundled hls.js 1.7.3 (Apache-2.0) under src/main/resources/mph/, served at https://mph.local/hls.min.js for .m3u8.
   See THIRD_PARTY_NOTICES.md at the repository root.
+- MemoryPageScheme additional routes: /image?u=URL (contain-scaled image, falls back to the plain page) and
+  /player?v=ID&list=PL... (YouTube playlist, queue overlay, window.mph next/prev/toggleShuffle/toggleQueue).
