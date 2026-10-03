@@ -146,6 +146,24 @@ public class MemoryPageScheme implements CefResourceHandler {
         this.requestUrl = requestUrl;
     }
 
+    private static final String ERROR_PAGE = """
+            <!doctype html><html><head><meta charset="utf-8"><style>
+            html,body{margin:0;height:100%;background:#1a1a1d;color:#e8e8e8;font-family:sans-serif}
+            body{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 5%;box-sizing:border-box}
+            h1{font-size:5vw;margin:0 0 2vw;color:#ff6b6b}
+            p{font-size:2.4vw;margin:0.6vw 0;word-break:break-all;color:#aaa}
+            </style></head><body><h1>Failed to load page</h1><p id="c"></p><p id="u"></p>
+            <script>document.getElementById('c').textContent='__CODE__';document.getElementById('u').textContent='__URL__';</script>
+            </body></html>
+            """;
+
+    private static String clip(String s) {
+        if (s == null) {
+            return "";
+        }
+        return s.length() > 200 ? s.substring(0, 200) : s;
+    }
+
     private static String param(String rawQuery, String key) {
         if (rawQuery == null) {
             return null;
@@ -191,6 +209,10 @@ public class MemoryPageScheme implements CefResourceHandler {
                 if (src != null && src.matches("(?i)^https?://\\S+$")) {
                     html = IMAGE_PAGE.replace("__SRC__", escapeJs(src));
                 }
+            } else if ("/error".equals(uri.getPath())) {
+                html = ERROR_PAGE
+                        .replace("__CODE__", escapeJs(clip(param(query, "c"))))
+                        .replace("__URL__", escapeJs(clip(param(query, "u"))));
             } else if ("/file".equals(uri.getPath())) {
                 String src = param(query, "u");
                 if (src != null && src.matches("(?i)^https?://\\S+$")) {

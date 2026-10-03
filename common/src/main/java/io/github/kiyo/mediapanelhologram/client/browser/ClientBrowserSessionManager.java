@@ -179,6 +179,17 @@ public final class ClientBrowserSessionManager {
                 public void onLoadError(String errorText, String failedUrl) {
                     entry.errorText = errorText;
                     entry.failedUrl = failedUrl;
+                    if (failedUrl == null || !failedUrl.startsWith("https://mph.local/")) {
+                        final String errPage = "https://mph.local/error?c="
+                                + java.net.URLEncoder.encode(errorText == null ? "" : errorText, java.nio.charset.StandardCharsets.UTF_8)
+                                + "&u="
+                                + java.net.URLEncoder.encode(failedUrl == null ? "" : failedUrl, java.nio.charset.StandardCharsets.UTF_8);
+                        Minecraft.getInstance().execute(() -> {
+                            if (SESSIONS.get(pos) == entry) {
+                                entry.session.loadUrl(errPage);
+                            }
+                        });
+                    }
                 }
 
                 @Override
