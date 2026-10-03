@@ -38,3 +38,4 @@ Local modifications (not in upstream; each was a fix for a bug reproduced only i
   /player?v=ID&list=PL... (YouTube playlist, queue overlay, window.mph next/prev/toggleShuffle/toggleQueue).
 - MemoryPageScheme route /error?c=NAME&u=URL: dark "Failed to load page" screen shown on the block face for network-level load errors
   (shown by ClientBrowserSessionManager#onLoadError; HTTP 4xx/5xx are not replaced).
+- /player page: window.mph.toggleCaptions() (IFrame API captions module via loadModule/setOption; undocumented calls, verified in practice).
