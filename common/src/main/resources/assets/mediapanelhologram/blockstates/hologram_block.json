@@ -1,0 +1,5 @@
+{
+  "multipart": [
+    { "apply": { "model": "mediapanelhologram:block/hologram_block" } }
+  ]
+}
