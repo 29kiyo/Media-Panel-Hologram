@@ -11,6 +11,7 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
 
 import io.github.kiyo.mediapanelhologram.MediaPanelHologram;
+import io.github.kiyo.mediapanelhologram.block.HologramBlock;
 import io.github.kiyo.mediapanelhologram.block.MediaBlock;
 import io.github.kiyo.mediapanelhologram.block.PanelBlock;
 
@@ -40,6 +41,16 @@ public final class ModBlocks {
                     .sound(SoundType.METAL)
                     .noOcclusion()
                     .lightLevel(state -> state.getValue(MediaBlock.LIGHT_LEVEL_PROPERTY))));
+
+    // Hologram-only block: invisible, no collision (click box is in HologramBlock#getShape).
+    public static final RegistrySupplier<Block> HOLOGRAM_BLOCK = BLOCKS.register("hologram_block",
+            () -> new HologramBlock(BlockBehaviour.Properties.of()
+                    .setId(blockKey("hologram_block"))
+                    .mapColor(MapColor.NONE)
+                    .strength(1.0f)
+                    .sound(SoundType.GLASS)
+                    .noOcclusion()
+                    .noCollision()));
 
     public static void init() {
         BLOCKS.register();

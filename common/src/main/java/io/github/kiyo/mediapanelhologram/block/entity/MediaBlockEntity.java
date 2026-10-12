@@ -51,15 +51,24 @@ import io.github.kiyo.mediapanelhologram.registry.ModBlockEntities;
  * (see ModMenuTypes) the one piece of data it needs to construct a client-
  * side MediaBlockMenu: this block's own position.
  */
-public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvider {
+public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvider, MediaSource {
     private ItemStack camouflageItem = ItemStack.EMPTY;
     private BlockState camouflageState = null;
     private String url = "";
     private MediaMode mode = MediaMode.IMAGE;
     private io.github.kiyo.mediapanelhologram.block.QualityPreset quality = io.github.kiyo.mediapanelhologram.block.QualityPreset.DEFAULT;
 
+    private io.github.kiyo.mediapanelhologram.block.HologramSettings hologram = io.github.kiyo.mediapanelhologram.block.HologramSettings.DEFAULT;
+    private int volume = -1;
+    private boolean muted = false;
+
     public MediaBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.MEDIA_BLOCK.get(), pos, state);
+        // Hologram Block starts as hologram-only. Done here (not via a packet in
+        // setPlacedBy) because this constructor runs on both server and client.
+        if (state.getBlock() instanceof io.github.kiyo.mediapanelhologram.block.HologramBlock) {
+            this.hologram = this.hologram.withHoloOn(true).withScreenOn(false);
+        }
     }
 
     public ItemStack getCamouflageItem() {
@@ -98,6 +107,15 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
     /** Call after setCamouflageItem (clearing the item resets this). */
     public void setCamouflageState(BlockState state) {
         this.camouflageState = state;
+        this.setChanged();
+    }
+
+    public io.github.kiyo.mediapanelhologram.block.HologramSettings getHologram() {
+        return hologram;
+    }
+
+    public void setHologram(io.github.kiyo.mediapanelhologram.block.HologramSettings hologram) {
+        this.hologram = hologram;
         this.setChanged();
     }
 
@@ -143,6 +161,11 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
         output.putString("Url", url);
         output.putInt("Mode", mode.ordinal());
         output.putInt("Quality", quality.ordinal());
+        output.putInt("Volume", volume);
+        output.putInt("Range", range);
+        output.putBoolean("Muted", muted);
+        hologram.save(output);
+        lock.save(output);
     }
 
     @Override
@@ -155,6 +178,54 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
         MediaMode[] values = MediaMode.values();
         mode = (modeOrdinal >= 0 && modeOrdinal < values.length) ? values[modeOrdinal] : MediaMode.IMAGE;
         quality = io.github.kiyo.mediapanelhologram.block.QualityPreset.fromOrdinal(input.getIntOr("Quality", io.github.kiyo.mediapanelhologram.block.QualityPreset.DEFAULT.ordinal()));
+        hologram = io.github.kiyo.mediapanelhologram.block.HologramSettings.load(input);
+        volume = input.getIntOr("Volume", -1);
+        range = io.github.kiyo.mediapanelhologram.block.MediaRange.clamp(input.getIntOr("Range", io.github.kiyo.mediapanelhologram.block.MediaRange.DEFAULT));
+        muted = input.getBooleanOr("Muted", false);
+        lock = io.github.kiyo.mediapanelhologram.block.LockData.load(input);
+    }
+
+    private int range = io.github.kiyo.mediapanelhologram.block.MediaRange.DEFAULT;
+
+    @Override
+    public int getRange() {
+        return range;
+    }
+
+    @Override
+    public void setRange(int range) {
+        this.range = io.github.kiyo.mediapanelhologram.block.MediaRange.clamp(range);
+        this.setChanged();
+    }
+
+    private io.github.kiyo.mediapanelhologram.block.LockData lock = io.github.kiyo.mediapanelhologram.block.LockData.NONE;
+
+    @Override
+    public io.github.kiyo.mediapanelhologram.block.LockData getLock() {
+        return lock;
+    }
+
+    @Override
+    public void setLock(io.github.kiyo.mediapanelhologram.block.LockData lock) {
+        this.lock = lock;
+        this.setChanged();
+    }
+
+    @Override
+    public int getVolume() {
+        return volume;
+    }
+
+    @Override
+    public boolean isMuted() {
+        return muted;
+    }
+
+    @Override
+    public void setVolumeState(int volume, boolean muted) {
+        this.volume = volume;
+        this.muted = muted;
+        this.setChanged();
     }
 
     @Override

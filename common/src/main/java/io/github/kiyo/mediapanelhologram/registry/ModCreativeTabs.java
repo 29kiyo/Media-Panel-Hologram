@@ -37,7 +37,7 @@ public final class ModCreativeTabs {
             }));
 
     static {
-        CreativeTabRegistry.append(MAIN, ModItems.PANEL, ModItems.MEDIA_BLOCK);
+        CreativeTabRegistry.append(MAIN, ModItems.PANEL, ModItems.MEDIA_BLOCK, ModItems.HOLOGRAM_BLOCK, ModItems.REMOTE);
     }
 
     public static void init() {

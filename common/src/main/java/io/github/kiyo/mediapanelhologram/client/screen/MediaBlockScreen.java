@@ -17,7 +17,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
 import io.github.kiyo.mediapanelhologram.block.MediaMode;
-import io.github.kiyo.mediapanelhologram.block.entity.MediaBlockEntity;
+import io.github.kiyo.mediapanelhologram.block.entity.MediaSource;
 import io.github.kiyo.mediapanelhologram.block.menu.MediaBlockMenu;
 import io.github.kiyo.mediapanelhologram.network.MediaBlockUpdatePayload;
 
@@ -55,9 +55,13 @@ public class MediaBlockScreen extends AbstractContainerScreen<MediaBlockMenu> {
     private io.github.kiyo.mediapanelhologram.block.QualityPreset selectedQuality;
     private Button qualityButton;
 
+    private static int heightFor(MediaBlockMenu menu) {
+        return menu.getBlockEntity() instanceof io.github.kiyo.mediapanelhologram.block.entity.MediaBlockEntity ? HEIGHT + 48 : HEIGHT + 24;
+    }
+
     public MediaBlockScreen(MediaBlockMenu menu, Inventory inventory, Component title) {
-        super(menu, inventory, title, WIDTH, HEIGHT);
-        MediaBlockEntity mediaBe = menu.getBlockEntity();
+        super(menu, inventory, title, WIDTH, heightFor(menu));
+        MediaSource mediaBe = menu.getBlockEntity();
         this.selectedMode = mediaBe != null ? mediaBe.getMode() : MediaMode.IMAGE;
         this.selectedQuality = mediaBe != null ? mediaBe.getQuality() : io.github.kiyo.mediapanelhologram.block.QualityPreset.DEFAULT;
     }
@@ -79,7 +83,7 @@ public class MediaBlockScreen extends AbstractContainerScreen<MediaBlockMenu> {
         this.topPos = (this.height - this.imageHeight) / 2;
         this.ownWidgets.clear();
 
-        MediaBlockEntity mediaBe = this.menu.getBlockEntity();
+        MediaSource mediaBe = this.menu.getBlockEntity();
         String initialUrl = mediaBe != null ? mediaBe.getUrl() : "";
 
         this.urlBox = addOwnWidget(new EditBox(this.font,
@@ -115,9 +119,39 @@ public class MediaBlockScreen extends AbstractContainerScreen<MediaBlockMenu> {
                 .bounds(leftPos + 10, topPos + 98, imageWidth - 20, 20)
                 .build());
 
+        if (mediaBe instanceof io.github.kiyo.mediapanelhologram.block.entity.MediaBlockEntity mbe) {
+            boolean holoOnly = mbe.getBlockState().getBlock() instanceof io.github.kiyo.mediapanelhologram.block.HologramBlock;
+            if (!holoOnly) addOwnWidget(Button.builder(screenLabel(mbe), b -> {
+                        io.github.kiyo.mediapanelhologram.block.HologramSettings n =
+                                mbe.getHologram().withScreenOn(!mbe.getHologram().screenOn());
+                        mbe.setHologram(n);
+                        NetworkManager.sendToServer(new io.github.kiyo.mediapanelhologram.network.HologramUpdatePayload(this.menu.getBlockPos(), n));
+                        b.setMessage(screenLabel(mbe));
+                    })
+                    .bounds(leftPos + 10, topPos + 122, 87, 20)
+                    .build());
+            addOwnWidget(Button.builder(Component.translatable("gui.mediapanelhologram.hologram.open"),
+                            b -> net.minecraft.client.Minecraft.getInstance().setScreenAndShow(new HologramScreen(this.menu.getBlockPos())))
+                    .bounds(holoOnly ? leftPos + 10 : leftPos + 103, topPos + 122, holoOnly ? imageWidth - 20 : 87, 20)
+                    .build());
+        }
+
+        addOwnWidget(Button.builder(Component.translatable("gui.mediapanelhologram.lock.open"),
+                        b -> net.minecraft.client.Minecraft.getInstance().setScreenAndShow(new LockScreen(this.menu.getBlockPos())))
+                .bounds(leftPos + 10, topPos + imageHeight - 54, 87, 20)
+                .build());
+        addOwnWidget(Button.builder(Component.translatable("gui.mediapanelhologram.range.open"),
+                        b -> net.minecraft.client.Minecraft.getInstance().setScreenAndShow(new RangeScreen(this.menu.getBlockPos())))
+                .bounds(leftPos + 103, topPos + imageHeight - 54, 87, 20)
+                .build());
         addOwnWidget(Button.builder(Component.translatable("gui.done"), b -> this.onClose())
                 .bounds(leftPos + 10, topPos + imageHeight - 30, imageWidth - 20, 20)
                 .build());
+    }
+
+    private static Component screenLabel(io.github.kiyo.mediapanelhologram.block.entity.MediaBlockEntity be) {
+        return Component.translatable("gui.mediapanelhologram.hologram.screen", Component.translatable(
+                be.getHologram().screenOn() ? "gui.mediapanelhologram.hologram.on" : "gui.mediapanelhologram.hologram.off"));
     }
 
     private Component qualityLabel() {
@@ -138,6 +172,23 @@ public class MediaBlockScreen extends AbstractContainerScreen<MediaBlockMenu> {
         for (Renderable widget : ownWidgets) {
             widget.extractRenderState(graphics, mouseX, mouseY, partialTick);
         }
+    }
+
+    // AbstractContainerScreen#keyPressed closes the screen on the inventory
+    // key (E), which made typing 'e' into the URL box close the GUI. Skip it
+    // and use the plain Screen behavior (Esc closes, widgets get the keys).
+    @Override
+    public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
+        if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
+            this.onClose();
+            return true;
+        }
+        for (net.minecraft.client.gui.components.events.GuiEventListener child : this.children()) {
+            if (child.keyPressed(event)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override

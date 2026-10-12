@@ -37,6 +37,9 @@ public interface IBrowserSession {
      */
     void loadUrl(String url);
 
+    /** The page's current URL (follows in-page navigation), or null if unknown. */
+    String getCurrentUrl();
+
     /** Runs JavaScript in the page's main frame (backed by CefBrowser#executeJavaScript). */
     void executeJavaScript(String code);
 
@@ -85,6 +88,9 @@ public interface IBrowserSession {
      * this is a single slot rather than a list.
      */
     void setLoadListener(BrowserLoadListener listener);
+
+    /** Receives page console messages that start with "MPH-" (any thread). Pass null to clear. */
+    void setConsoleListener(java.util.function.Consumer<String> listener);
 
     /**
      * Releases the underlying browser and its GPU texture. Must be called

@@ -19,3 +19,7 @@ Thumbs.db
 # Logs / crash
 *.log
 hs_err_pid*
+fabric/run-client2/
+fabric/run-server/
+neoforge/run-client2/
+neoforge/run-server/

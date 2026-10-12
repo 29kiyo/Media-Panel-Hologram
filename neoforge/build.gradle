@@ -73,3 +73,18 @@ configurations {
         outgoing.artifact(shadowJar)
     }
 }
+
+// MPH-MULTI-RUN: second client + separate server for multiplayer checks (own folders, own user name).
+loom {
+    runs {
+        client2 {
+            client()
+            configName = "NeoForge Client 2"
+            runDir "run-client2"
+            programArgs "--username", "Player2"
+        }
+        server {
+            runDir "run-server"
+        }
+    }
+}

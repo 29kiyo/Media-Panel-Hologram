@@ -31,6 +31,7 @@ import org.jetbrains.annotations.Nullable;
 
 import io.github.kiyo.mediapanelhologram.block.MediaMode;
 import io.github.kiyo.mediapanelhologram.block.entity.MediaBlockEntity;
+import io.github.kiyo.mediapanelhologram.block.entity.MediaSource;
 import io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager;
 import io.github.kiyo.mediapanelhologram.browser.IBrowserSession;
 
@@ -88,7 +89,20 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
     }
 
     @Override
-    public void extractRenderState(MediaBlockEntity blockEntity, State state, float partialTick, Vec3 cameraPos,
+    public void extractRenderState(MediaBlockEntity blockEntity, State state, float partialTick, Vec3 cameraPos, ModelFeatureRenderer.CrumblingOverlay crumblingOverlay) {
+        if (!io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.perfEnabled()) {
+            extractRenderState0(blockEntity, state, partialTick, cameraPos, crumblingOverlay);
+            return;
+        }
+        long t0 = System.nanoTime();
+        try {
+            extractRenderState0(blockEntity, state, partialTick, cameraPos, crumblingOverlay);
+        } finally {
+            io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.perfRecord(true, System.nanoTime() - t0);
+        }
+    }
+
+    private void extractRenderState0(MediaBlockEntity blockEntity, State state, float partialTick, Vec3 cameraPos,
             ModelFeatureRenderer.CrumblingOverlay crumblingOverlay) {
         BlockEntityRenderState.extractBase(blockEntity, state, crumblingOverlay);
 
@@ -121,12 +135,15 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
         }
 
         state.browserTextureLocation = null;
+        state.hologramTexture = null;
+        state.hologram = blockEntity.getHologram();
         boolean skipThisFrame = false;
         state.facing = blockEntity.getBlockState()
                 .getValue(io.github.kiyo.mediapanelhologram.block.MediaBlock.FACING);
         state.screenUp = blockEntity.getBlockState()
                 .getValue(io.github.kiyo.mediapanelhologram.block.MediaBlock.SCREEN_UP_PROPERTY);
-        if (camouflageState == null) {
+        if (!blockEntity.getBlockState().getValue(io.github.kiyo.mediapanelhologram.block.MediaBlock.POWERED_PROPERTY)
+                && (state.hologram.screenOn() || state.hologram.holoOn())) {
             String url = resolveContentUrl(blockEntity);
             IBrowserSession session = ClientBrowserSessionManager.getOrCreate(blockEntity.getBlockPos(), url);
             if (session != null && session.isTextureReady()) {
@@ -147,7 +164,13 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
                     READY_FRAME_COUNT.put(pos, count + 1);
                     skipThisFrame = true;
                 } else {
-                    state.browserTextureLocation = session.getTextureLocation();
+                    Identifier tex = session.getTextureLocation();
+                    if (state.hologram.holoOn()) {
+                        state.hologramTexture = tex;
+                    }
+                    if (camouflageState == null && state.hologram.screenOn()) {
+                        state.browserTextureLocation = tex;
+                    }
                 }
             } else {
                 READY_FRAME_COUNT.remove(blockEntity.getBlockPos());
@@ -162,12 +185,18 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
      * HTML wrapping should be added later. Public so MediaBrowserScreen (a
      * different package) can reuse it verbatim.
      */
-    public static String resolveContentUrl(MediaBlockEntity blockEntity) {
+    public static String resolveContentUrl(MediaSource blockEntity) {
         String url = blockEntity.getUrl();
         if (blockEntity.getMode() == MediaMode.BROWSER && (url == null || url.isEmpty())) {
             // No URL set yet in browser mode: open a sensible default
             // instead of a blank page, matching the Home-button convention.
             return "https://www.google.com";
+        }
+        // Hologram Block with no URL yet: show a placeholder so the hologram is visible right after placing.
+        if ((url == null || url.isEmpty())
+                && blockEntity instanceof io.github.kiyo.mediapanelhologram.block.entity.MediaBlockEntity holoBe
+                && holoBe.getBlockState().getBlock() instanceof io.github.kiyo.mediapanelhologram.block.HologramBlock) {
+            return "https://mph.local/empty";
         }
         if (blockEntity.getMode() == MediaMode.VIDEO) {
             String embed = io.github.kiyo.mediapanelhologram.browser.VideoEmbed.toEmbedUrl(url);
@@ -186,6 +215,20 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
 
     @Override
     public void submit(State state, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState cameraRenderState) {
+        if (!io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.perfEnabled()) {
+            submit0(state, poseStack, collector, cameraRenderState);
+            return;
+        }
+        long t0 = System.nanoTime();
+        try {
+            submit0(state, poseStack, collector, cameraRenderState);
+        } finally {
+            io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.perfRecord(false, System.nanoTime() - t0);
+        }
+    }
+
+    private void submit0(State state, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState cameraRenderState) {
+        HologramRenderer.submit(state.hologramTexture, state.hologram, 0.5f, 0.5f, 0.5f, poseStack, collector, cameraRenderState);
         if (!state.modelRenderState.isEmpty()) {
             state.modelRenderState.submit(poseStack, collector, state.camouflageLightCoords, OverlayTexture.NO_OVERLAY, 0);
         }
@@ -219,6 +262,53 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
         }
     }
 
+    // NeoForge-only hook: matches IBlockEntityRendererExtension#getRenderBoundingBox(BlockEntity)
+    // by name + erased descriptor. No @Override (common compiles against vanilla) and the
+    // parameter must be BlockEntity, not MediaBlockEntity, or no bridge method exists.
+    // Unused on Fabric.
+    public net.minecraft.world.phys.AABB getRenderBoundingBox(net.minecraft.world.level.block.entity.BlockEntity blockEntity) {
+        return HologramRenderer.renderBounds(blockEntity.getBlockPos(),
+                blockEntity instanceof io.github.kiyo.mediapanelhologram.block.entity.MediaBlockEntity src
+                        ? src.getHologram() : io.github.kiyo.mediapanelhologram.block.HologramSettings.DEFAULT);
+    }
+
+    // Registers this block entity in ClientLevel.globallyRenderedBlockEntities, so it is extracted
+    // every frame without going through the chunk-section visibility list (the hologram may be
+    // far from its block and was dropped from that list). Decided once when the block entity is
+    // added to the level. Distance is still gated by shouldRender below.
+    @Override
+    public boolean shouldRenderOffScreen() {
+        return true;
+    }
+
+    // Distance gate used by BlockEntityRenderDispatcher (vanilla default: block centre within 64).
+    // This is a real override of BlockEntityRenderer#shouldRender(T, Vec3) with T = MediaBlockEntity.
+    // With the hologram on, also accept being near the hologram centre, widened by its radius.
+    @Override
+    public boolean shouldRender(io.github.kiyo.mediapanelhologram.block.entity.MediaBlockEntity blockEntity,
+            net.minecraft.world.phys.Vec3 cameraPos) {
+        net.minecraft.core.BlockPos bp = blockEntity.getBlockPos();
+        // CAMO-ALWAYS: a camouflaged block is drawn only by this renderer (its own model is invisible),
+        // so it must not vanish at the 64-block gate. Loaded chunks already bound the distance.
+        if (blockEntity.hasCamouflage()) {
+            return true;
+        }
+        double base = Math.max(64.0, blockEntity.getRange()
+                + io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.HYSTERESIS);
+        if (net.minecraft.world.phys.Vec3.atCenterOf(bp).closerThan(cameraPos, base)) {
+            return true;
+        }
+        io.github.kiyo.mediapanelhologram.block.HologramSettings s = blockEntity.getHologram();
+        if (!s.holoOn()) {
+            return false;
+        }
+        double cx = bp.getX() + 0.5 + s.x() / 1000.0;
+        double cy = bp.getY() + 0.5 + s.y() / 1000.0;
+        double cz = bp.getZ() + 0.5 + s.z() / 1000.0;
+        double r = Math.hypot(s.width() / 2000.0, s.effectiveHeight() / 2000.0);
+        return new net.minecraft.world.phys.Vec3(cx, cy, cz).closerThan(cameraPos, base + r);
+    }
+
     private static final Direction[] SCREEN_UP_DIRECTIONS =
             { Direction.SOUTH, Direction.WEST, Direction.NORTH, Direction.EAST };
 
@@ -227,7 +317,7 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
      * Rotate it around the block center so it lands on the FACING face.
      * For UP/DOWN, screenUp picks which horizontal direction the screen's top edge points to.
      */
-    private static void applyScreenOrientation(PoseStack poseStack, Direction facing, int screenUp) {
+    public static void applyScreenOrientation(PoseStack poseStack, Direction facing, int screenUp) {
         poseStack.translate(0.5f, 0.5f, 0.5f);
         if (facing == Direction.UP || facing == Direction.DOWN) {
             float upYaw = Direction.getYRot(SCREEN_UP_DIRECTIONS[screenUp & 3]);
@@ -268,6 +358,10 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
         int camouflageLightCoords;
         @Nullable
         Identifier browserTextureLocation;
+        /** Texture for the hologram; independent of camouflage (set whenever the session is ready and not powered). */
+        @Nullable
+        Identifier hologramTexture;
+        io.github.kiyo.mediapanelhologram.block.HologramSettings hologram = io.github.kiyo.mediapanelhologram.block.HologramSettings.DEFAULT;
         Direction facing = Direction.SOUTH;
         int screenUp;
     }

@@ -11,7 +11,9 @@ public final class MediaPanelHologram {
     public static final String MOD_ID = "mediapanelhologram";
 
     public static void init() {
+        io.github.kiyo.mediapanelhologram.config.PanelConfig.load();
         ModBlocks.init();
+        io.github.kiyo.mediapanelhologram.registry.ModDataComponents.init();
         ModItems.init();
         ModBlockEntities.init();
         ModMenuTypes.init();

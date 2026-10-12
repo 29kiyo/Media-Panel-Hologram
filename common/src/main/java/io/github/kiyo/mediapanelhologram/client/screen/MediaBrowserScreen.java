@@ -27,7 +27,7 @@ import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 import io.github.kiyo.mediapanelhologram.block.MediaMode;
-import io.github.kiyo.mediapanelhologram.block.entity.MediaBlockEntity;
+import io.github.kiyo.mediapanelhologram.block.entity.MediaSource;
 import io.github.kiyo.mediapanelhologram.browser.IBrowserSession;
 import io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager;
 import io.github.kiyo.mediapanelhologram.client.renderer.MediaBlockEntityRenderer;
@@ -120,6 +120,18 @@ public final class MediaBrowserScreen extends Screen {
     private final BlockPos pos;
     private final List<Renderable> ownWidgets = new ArrayList<>();
     private EditBox urlBox;
+    // IME-PAGE: the vanilla TextInputManager keeps the IME off unless a text widget has focus,
+    // so the page area announces itself as a text input while it is focused (see focusPage).
+    private boolean pageFocused;
+    private net.minecraft.client.input.PreeditEvent preedit;
+    private int imeX;
+    private int imeY;
+
+    @Override
+    public void removed() {
+        super.removed();
+        leavePage();
+    }
 
     public MediaBrowserScreen(BlockPos pos) {
         super(Component.translatable("gui.mediapanelhologram.media_block.browser_control"));
@@ -145,7 +157,7 @@ public final class MediaBrowserScreen extends Screen {
         super.init();
         this.ownWidgets.clear();
 
-        MediaBlockEntity mediaBe = findBlockEntity();
+        MediaSource mediaBe = findBlockEntity();
         String initialUrl = mediaBe != null ? (mediaBe.getMode() == MediaMode.VIDEO ? mediaBe.getUrl()
                 : MediaBlockEntityRenderer.resolveContentUrl(mediaBe)) : "";
 
@@ -183,14 +195,19 @@ public final class MediaBrowserScreen extends Screen {
                 .bounds(178, ADDRESS_BAR_HEIGHT + 4, 50, 16)
                 .build());
 
+        addOwnWidget(Button.builder(Component.translatable("gui.mediapanelhologram.media_block.share"), b -> sharePage())
+                .bounds(232, ADDRESS_BAR_HEIGHT + 4, 50, 16)
+                .build());
+
         // Media control row: calls window.mph.* (defined by the mph.local player pages).
-        addMediaButton("-10", 8, 30, () -> mph("seekBy(-10)"));
-        addMediaButton("Play", 40, 40, () -> mph("toggle()"));
-        addMediaButton("+10", 82, 30, () -> mph("seekBy(10)"));
+        addMediaButton("-10", 8, 30, () -> playback(io.github.kiyo.mediapanelhologram.network.RemoteCommand.SEEK_BY, -10));
+        addMediaButton("Play", 40, 40, () -> playback(io.github.kiyo.mediapanelhologram.network.RemoteCommand.PLAY_TOGGLE, 0));
+        addMediaButton("+10", 82, 30, () -> playback(io.github.kiyo.mediapanelhologram.network.RemoteCommand.SEEK_BY, 10));
         addMediaButton("Vol-", 118, 36, () -> adjustVolume(-0.1));
         addMediaButton("Vol+", 156, 36, () -> adjustVolume(0.1));
-        addMediaButton("Mute", 198, 40, () -> mph("toggleMute()"));
-        addMediaButton("Speed", 240, 46, () -> mph("setRate(" + nextDevRate() + ")"));
+        addMediaButton("Mute", 198, 40, () -> sendVolume(
+                io.github.kiyo.mediapanelhologram.network.MediaVolumeService.VolumeOp.TOGGLE_MUTE, 0));
+        addMediaButton("Speed", 240, 46, () -> playback(io.github.kiyo.mediapanelhologram.network.RemoteCommand.SET_RATE, (int) Math.round(nextDevRate() * 100)));
         addMediaButton("CC", 288, 30, () -> mph("toggleCaptions()"));
         // Playlist buttons are grouped at the right edge (total width 130).
         int plX = Math.max(322, this.width - 8 - 130);
@@ -202,49 +219,13 @@ public final class MediaBrowserScreen extends Screen {
 
     /** Reset target: the current block's quality base zoom (0 if the block is gone). */
     private double baseZoom() {
-        MediaBlockEntity be = findBlockEntity();
+        MediaSource be = findBlockEntity();
         return be != null ? be.getQuality().baseZoomLevel() : 0.0;
     }
 
-    /**
-     * Fallback window.mph for ordinary pages (best effort): operates the largest <video> in the main
-     * frame. Does nothing if there is no video, it sits in a cross-origin iframe, or the site uses
-     * DRM. Pages under https://mph.local/ already define their own window.mph, so this is skipped.
-     */
-    private static final String GENERIC_MPH = """
-            if(!window.mph){(function(){
-            function vid(){var best=null,area=-1;
-              Array.prototype.slice.call(document.querySelectorAll('video')).forEach(function(v){
-                var r=v.getBoundingClientRect();var a=r.width*r.height;if(a>area){area=a;best=v;}});
-              if(best){return best;}
-              var au=Array.prototype.slice.call(document.querySelectorAll('audio'));
-              for(var i=0;i<au.length;i++){if(!au[i].paused){return au[i];}}
-              return au.length?au[0]:null;}
-            function w(f){return function(x){var v=vid();if(v){f(v,x);}};}
-            window.mph={
-              play:w(function(v){v.play();}),
-              pause:w(function(v){v.pause();}),
-              toggle:w(function(v){if(v.paused){v.play();}else{v.pause();}}),
-              setVolume:w(function(v,x){v.volume=Math.max(0,Math.min(1,x));}),
-              setMuted:w(function(v,x){v.muted=!!x;}),
-              setRate:w(function(v,x){
-                window.__mphRate=x;v.playbackRate=x;
-                if(!v.__mphHook){v.__mphHook=true;
-                  v.addEventListener('ratechange',function(){
-                    var r=window.__mphRate;
-                    if(r&&r!==1&&v.playbackRate!==r){v.playbackRate=r;}
-                  });}
-              }),
-              seek:w(function(v,x){v.currentTime=x;}),
-              seekBy:w(function(v,x){v.currentTime=Math.max(0,v.currentTime+x);}),
-              volumeBy:w(function(v,x){v.volume=Math.max(0,Math.min(1,v.volume+x));}),
-              toggleMute:w(function(v){if(!v.muted){window.__mphVol=v.volume;v.muted=true;}else{v.muted=false;if(v.volume===0){v.volume=(window.__mphVol>0)?window.__mphVol:0.5;}}}),
-              next:function(){var b=document.querySelector('.ytp-next-button');if(b){b.click();}}
-            };})();}
-            """;
 
     private static String mphScript(String call) {
-        return GENERIC_MPH + "try{window.mph." + call + ";}catch(e){}";
+        return io.github.kiyo.mediapanelhologram.client.browser.MphScripts.script(call);
     }
 
     private void mph(String call) {
@@ -260,8 +241,135 @@ public final class MediaBrowserScreen extends Screen {
                 .build());
     }
 
+    /** Play/pause, seek and rate go through the server so every viewer follows (and the lock applies). */
+    private void playback(io.github.kiyo.mediapanelhologram.network.RemoteCommand cmd, int arg) {
+        MediaSource src = findBlockEntity();
+        double[] ref = src == null ? null
+                : io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.playbackRefForCommand(src.getSessionKey());
+        dev.architectury.networking.NetworkManager.sendToServer(
+                new io.github.kiyo.mediapanelhologram.network.PlaybackCommandPayload(pos, cmd, arg, ref != null,
+                        ref != null ? ref[0] : 0.0, ref != null && ref[1] > 0.5, ref != null ? ref[2] : 1.0,
+                        ref != null ? ref[3] : -1.0));
+    }
+
+    // SHARE-PAGE: publish the page this client is looking at as the block's URL, so everybody opens it.
+    private Component shareMessage;
+    private long shareMessageUntil;
+
+    private static final java.util.regex.Pattern SHARE_BLOCKED = java.util.regex.Pattern.compile(
+            "(?i)(login|log-in|signin|sign-in|signup|oauth|token|password|passwd|accounts\\.google\\.com|[?&]auth=|/auth(?:[/?#]|$))");
+    private static final java.util.regex.Pattern SHARE_ID = java.util.regex.Pattern.compile("[A-Za-z0-9_-]{1,64}");
+
+    private void say(String key) {
+        shareMessage = Component.translatable(key);
+        shareMessageUntil = System.currentTimeMillis() + 3000L;
+    }
+
+    private void drawShareMessage(GuiGraphicsExtractor g) {
+        if (shareMessage == null || System.currentTimeMillis() > shareMessageUntil) {
+            return;
+        }
+        String t = shareMessage.getString();
+        int w = this.font.width(t);
+        int x = Math.max(4, (this.width - w) / 2);
+        int y = this.height - 18;
+        g.fill(x - 4, y - 3, x + w + 4, y + 11, 0xE0000000);
+        g.text(this.font, t, x, y, 0xFFFFFFFF);
+    }
+
+    private static String queryParam(String rawQuery, String name) {
+        for (String part : rawQuery.split("&")) {
+            int eq = part.indexOf('=');
+            if (eq > 0 && part.substring(0, eq).equals(name)) {
+                try {
+                    return java.net.URLDecoder.decode(part.substring(eq + 1), java.nio.charset.StandardCharsets.UTF_8);
+                } catch (IllegalArgumentException e) {
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Original URL for a page URL: this MOD's own player pages map back to the video / file / image URL; other internal pages cannot be shared (null). */
+    private static String publicUrlOf(String page) {
+        if (page == null) {
+            return null;
+        }
+        String u = page.trim();
+        if (!u.startsWith("https://mph.local/")) {
+            return (u.startsWith("http://") || u.startsWith("https://")) ? u : null;
+        }
+        java.net.URI uri;
+        try {
+            uri = java.net.URI.create(u);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+        String path = uri.getPath() == null ? "" : uri.getPath();
+        String query = uri.getRawQuery() == null ? "" : uri.getRawQuery();
+        if (path.equals("/player")) {
+            String v = queryParam(query, "v");
+            String list = queryParam(query, "list");
+            if (v != null && SHARE_ID.matcher(v).matches()) {
+                return "https://www.youtube.com/watch?v=" + v
+                        + (list != null && SHARE_ID.matcher(list).matches() ? "&list=" + list : "");
+            }
+            if (list != null && SHARE_ID.matcher(list).matches()) {
+                return "https://www.youtube.com/playlist?list=" + list;
+            }
+            return null;
+        }
+        if (path.equals("/file") || path.equals("/image")) {
+            String target = queryParam(query, "u");
+            return target != null && (target.startsWith("http://") || target.startsWith("https://")) ? target : null;
+        }
+        return null;
+    }
+
+    private void sharePage() {
+        MediaSource src = findBlockEntity();
+        IBrowserSession session = currentSession();
+        if (src == null || session == null) {
+            return;
+        }
+        if (!io.github.kiyo.mediapanelhologram.network.LockAccess.canOperate(
+                net.minecraft.client.Minecraft.getInstance().player, src.getLock())) {
+            say("message.mediapanelhologram.lock.denied");
+            return;
+        }
+        String current;
+        try {
+            current = session.getCurrentUrl();
+        } catch (RuntimeException e) {
+            current = null;
+        }
+        String url = publicUrlOf(current);
+        if (url == null || url.length() > 2048) {
+            say("gui.mediapanelhologram.share.unavailable");
+            return;
+        }
+        if (SHARE_BLOCKED.matcher(url).find()) {
+            say("gui.mediapanelhologram.share.blocked");
+            return;
+        }
+        if (url.equals(src.getUrl())) {
+            say("gui.mediapanelhologram.share.same");
+            return;
+        }
+        navigateTo(url);
+        say("gui.mediapanelhologram.share.done");
+    }
+
     private void adjustVolume(double delta) {
-        mph("volumeBy(" + delta + ")");
+        sendVolume(io.github.kiyo.mediapanelhologram.network.MediaVolumeService.VolumeOp.VOLUME_BY,
+                (int) Math.round(delta * 100));
+    }
+
+    /** Volume/mute go through the server so the saved state and every viewer stay in sync. */
+    private void sendVolume(io.github.kiyo.mediapanelhologram.network.MediaVolumeService.VolumeOp op, int arg) {
+        dev.architectury.networking.NetworkManager.sendToServer(
+                new io.github.kiyo.mediapanelhologram.network.MediaVolumeCommandPayload(pos, op, arg));
     }
 
     private void adjustZoom(double delta) {
@@ -325,7 +433,7 @@ public final class MediaBrowserScreen extends Screen {
     }
 
     private void navigateTo(String url) {
-        MediaBlockEntity currentBe = findBlockEntity();
+        MediaSource currentBe = findBlockEntity();
         io.github.kiyo.mediapanelhologram.block.QualityPreset currentQuality = currentBe != null
                 ? currentBe.getQuality() : io.github.kiyo.mediapanelhologram.block.QualityPreset.DEFAULT;
         NetworkManager.sendToServer(new MediaBlockUpdatePayload(this.pos, url, currentBe != null ? currentBe.getMode() : MediaMode.BROWSER, currentQuality));
@@ -335,16 +443,16 @@ public final class MediaBrowserScreen extends Screen {
         navigateTo(resolveNavigationTarget(this.urlBox.getValue()));
     }
 
-    private MediaBlockEntity findBlockEntity() {
+    private MediaSource findBlockEntity() {
         var level = Minecraft.getInstance().level;
-        if (level != null && level.getBlockEntity(pos) instanceof MediaBlockEntity mediaBe) {
+        if (level != null && level.getBlockEntity(pos) instanceof MediaSource mediaBe) {
             return mediaBe;
         }
         return null;
     }
 
     private IBrowserSession currentSession() {
-        MediaBlockEntity mediaBe = findBlockEntity();
+        MediaSource mediaBe = findBlockEntity();
         if (mediaBe == null) {
             return null;
         }
@@ -367,7 +475,13 @@ public final class MediaBrowserScreen extends Screen {
     }
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor g0, int m0, int m1, float p0) {
+        extractRenderStateBase(g0, m0, m1, p0);
+        drawPreedit(g0);
+        drawShareMessage(g0);
+    }
+
+    private void extractRenderStateBase(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         if (findBlockEntity() == null) {
             this.onClose();
             return;
@@ -381,7 +495,7 @@ public final class MediaBrowserScreen extends Screen {
                     GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
         }
         graphics.fill(0, 0, this.width, TOP_BAR_HEIGHT, 0xFF202225);
-        MediaBlockEntity modeBe = findBlockEntity();
+        MediaSource modeBe = findBlockEntity();
         if (modeBe != null) {
             Component modeLabel = Component.translatable(modeBe.getMode().translationKey());
             graphics.text(this.font, modeLabel, this.width - 8 - this.font.width(modeLabel),
@@ -454,6 +568,11 @@ public final class MediaBrowserScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (event.y() >= TOP_BAR_HEIGHT) {
+            focusPage(event.x(), event.y());
+        } else {
+            leavePage();
+        }
         if (event.y() < TOP_BAR_HEIGHT) {
             return super.mouseClicked(event, doubleClick);
         }
@@ -504,6 +623,9 @@ public final class MediaBrowserScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (composing() && isCompositionKey(event.key())) {
+            return true;
+        }
         if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
             this.onClose();
             return true;
@@ -539,6 +661,9 @@ public final class MediaBrowserScreen extends Screen {
 
     @Override
     public boolean keyReleased(KeyEvent event) {
+        if (composing() && isCompositionKey(event.key())) {
+            return true;
+        }
         if (this.getFocused() == urlBox) {
             return super.keyReleased(event);
         }
@@ -550,7 +675,80 @@ public final class MediaBrowserScreen extends Screen {
     }
 
     @Override
+    public boolean preeditUpdated(net.minecraft.client.input.PreeditEvent event) {
+        if (pageFocused) {
+            preedit = (event == null || event.fullText().isEmpty()) ? null : event;
+            return true;
+        }
+        return super.preeditUpdated(event);
+    }
+
+    private void focusPage(double x, double y) {
+        this.setFocused(null);
+        imeX = (int) x;
+        imeY = (int) y;
+        pageFocused = true;
+        net.minecraft.client.Minecraft.getInstance().onTextInputFocusChange(this, true);
+    }
+
+    private void leavePage() {
+        if (pageFocused) {
+            pageFocused = false;
+            preedit = null;
+            net.minecraft.client.Minecraft.getInstance().onTextInputFocusChange(this, false);
+        }
+    }
+
+    private boolean composing() {
+        return pageFocused && preedit != null && !preedit.fullText().isEmpty();
+    }
+
+    private static boolean isCompositionKey(int key) {
+        return switch (key) {
+            case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER, GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_BACKSPACE,
+                    GLFW.GLFW_KEY_DELETE, GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_LEFT,
+                    GLFW.GLFW_KEY_RIGHT, GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_HOME,
+                    GLFW.GLFW_KEY_END -> true;
+            default -> false;
+        };
+    }
+
+    private void drawPreedit(GuiGraphicsExtractor g) {
+        if (!pageFocused) {
+            return;
+        }
+        net.minecraft.client.Minecraft.getInstance().textInputManager().setTextInputArea(imeX, imeY, 1, 12);
+        if (!composing()) {
+            return;
+        }
+        String t = preedit.fullText();
+        int w = this.font.width(t);
+        int x = Math.max(4, Math.min(imeX, this.width - w - 4));
+        int y = Math.max(4, imeY - 20); // above the click point; the IME candidate window opens below it
+        g.fill(x - 2, y - 2, x + w + 2, y + 11, 0xE0000000);
+        g.text(this.font, t, x, y, 0xFFFFFFFF);
+        g.fill(x, y + 10, x + w, y + 11, 0xFFFFFFFF);
+    }
+
+    @Override
     public boolean charTyped(CharacterEvent event) {
+        preedit = null;
+        if (this.getFocused() != urlBox) {
+            int cp = event.codepoint();
+            if (!Character.isBmpCodePoint(cp)) {
+                IBrowserSession session = currentSession();
+                if (session != null) {
+                    for (char c : Character.toChars(cp)) {
+                        session.sendKeyTyped(c, 0);
+                    }
+                }
+                return true;
+            }
+        }
+        return charTypedBase(event);
+    }
+
+    private boolean charTypedBase(CharacterEvent event) {
         if (this.getFocused() == urlBox) {
             return super.charTyped(event);
         }

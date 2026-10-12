@@ -55,10 +55,11 @@ public class MemoryPageScheme implements CefResourceHandler {
               setRate:function(r){if(ok())player.setPlaybackRate(r);},
               seek:function(s){if(ok())player.seekTo(s,true);},
               seekBy:function(d){if(ok())player.seekTo(Math.max(0,player.getCurrentTime()+d),true);},
+              state:function(){if(!ok()){return null;}return {p:player.getCurrentTime(),pl:player.getPlayerState()===1,r:player.getPlaybackRate(),d:player.getDuration()};},
               next:function(){if(ok())player.nextVideo();},
               prev:function(){if(ok())player.previousVideo();},
               toggleShuffle:function(){if(ok()){shuf=!shuf;player.setShuffle(shuf);setTimeout(function(){if(qOn){renderQueue();}},500);}},
-              toggleQueue:function(){qOn=!qOn;renderQueue();},toggleCaptions:function(){try{if(window.__mphCap){window.__mphCap=false;try{player.setOption('captions','track',{});}catch(e){}try{player.unloadModule('captions');}catch(e){}}else{window.__mphCap=true;player.loadModule('captions');setTimeout(function(){var l=player.getOption('captions','tracklist')||[];if(l.length){player.setOption('captions','track',{languageCode:l[0].languageCode});}},400);}}catch(e){}}
+              toggleQueue:function(){qOn=!qOn;renderQueue();},toggleRepeat:function(){window.__mphRep=!window.__mphRep;try{player.setLoop(window.__mphRep);}catch(e){}},toggleCaptions:function(){try{if(window.__mphCap){window.__mphCap=false;try{player.setOption('captions','track',{});}catch(e){}try{player.unloadModule('captions');}catch(e){}}else{window.__mphCap=true;player.loadModule('captions');setTimeout(function(){var l=player.getOption('captions','tracklist')||[];if(l.length){player.setOption('captions','track',{languageCode:l[0].languageCode});}},400);}}catch(e){}}
             };
             var qOn=false,shuf=false;
             function renderQueue(){
@@ -86,7 +87,7 @@ public class MemoryPageScheme implements CefResourceHandler {
             function onYouTubeIframeAPIReady(){if(player){return;}
               var cfg={width:'100%',height:'100%',
                 playerVars:{autoplay:1,controls:1,rel:0,playsinline:1,origin:'https://mph.local'},
-                events:{onError:function(e){ytErr(e.data);},onReady:function(){if(player.isMuted()){player.unMute();}},onStateChange:function(){if(qOn){renderQueue();}}}};
+                events:{onError:function(e){ytErr(e.data);},onReady:function(){if(player.isMuted()){player.unMute();}var w=window.__mphWant;if(w){if(w.v>=0){player.setVolume(Math.round(w.v*100));}if(w.m){player.mute();}}},onStateChange:function(e){if(qOn){renderQueue();}if(e&&e.data===0&&window.__mphRep){try{if(!player.getPlaylist()){player.seekTo(0,true);player.playVideo();}}catch(x){}}}}};
               if('__ID__'){cfg.videoId='__ID__';}
               if('__LIST__'){cfg.playerVars.listType='playlist';cfg.playerVars.list='__LIST__';}
               player=new YT.Player('player',cfg);
@@ -118,7 +119,8 @@ public class MemoryPageScheme implements CefResourceHandler {
               setMuted:function(m){v.muted=!!m;}, setRate:function(r){v.playbackRate=r;},
               volumeBy:function(d){v.volume=Math.max(0,Math.min(1,v.volume+d));},
               toggleMute:function(){v.muted=!v.muted;},
-              seek:function(s){v.currentTime=s;}, seekBy:function(d){v.currentTime=Math.max(0,v.currentTime+d);}
+              toggleRepeat:function(){v.loop=!v.loop;}, seek:function(s){v.currentTime=s;}, seekBy:function(d){v.currentTime=Math.max(0,v.currentTime+d);},
+              state:function(){return {p:v.currentTime,pl:!v.paused&&!v.ended,r:v.playbackRate,d:isFinite(v.duration)?v.duration:-1};}
             };
             </script></body></html>
             """;
@@ -156,6 +158,15 @@ public class MemoryPageScheme implements CefResourceHandler {
             <script>document.getElementById('c').textContent='__CODE__';document.getElementById('u').textContent='__URL__';</script>
             </body></html>
             """;
+
+    private static final String EMPTY_PAGE = """
+<!doctype html><html><head><meta charset="utf-8"><style>
+html,body{margin:0;height:100%;background:#101418;color:#4fd1c5;font-family:sans-serif}
+body{display:flex;align-items:center;justify-content:center;text-align:center}
+.t{font-size:4vw;opacity:.9}.s{font-size:2vw;opacity:.6;margin-top:1vw;color:#cfd8dc}
+</style></head><body><div><div class="t">No URL set</div>
+<div class="s">Shift + right-click the block to set a URL</div></div></body></html>
+""";
 
     private static String clip(String s) {
         if (s == null) {
@@ -209,6 +220,8 @@ public class MemoryPageScheme implements CefResourceHandler {
                 if (src != null && src.matches("(?i)^https?://\\S+$")) {
                     html = IMAGE_PAGE.replace("__SRC__", escapeJs(src));
                 }
+            } else if ("/empty".equals(uri.getPath())) {
+                html = EMPTY_PAGE;
             } else if ("/error".equals(uri.getPath())) {
                 html = ERROR_PAGE
                         .replace("__CODE__", escapeJs(clip(param(query, "c"))))

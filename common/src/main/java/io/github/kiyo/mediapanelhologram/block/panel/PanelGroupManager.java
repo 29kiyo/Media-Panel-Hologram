@@ -48,11 +48,11 @@ public final class PanelGroupManager {
      * has been removed. Recomputes every neighboring group, since removing
      * one panel can split a big rectangle into several smaller pieces.
      */
-    public static void onRemoved(Level level, BlockPos removedPos, Direction facing) {
+    public static void onRemoved(Level level, BlockPos removedPos, Direction facing, int screenUp) {
         Set<BlockPos> visited = new HashSet<>();
         for (BlockPos offset : inPlaneOffsets(facing)) {
             BlockPos neighbor = removedPos.offset(offset);
-            if (!visited.contains(neighbor) && isMatchingPanel(level, neighbor, facing)) {
+            if (!visited.contains(neighbor) && isMatchingPanel(level, neighbor, facing, screenUp)) {
                 recomputeFrom(level, neighbor, visited);
             }
         }
@@ -67,6 +67,7 @@ public final class PanelGroupManager {
             return;
         }
         Direction facing = state.getValue(PanelBlock.FACING);
+        int screenUp = state.getValue(PanelBlock.SCREEN_UP);
 
         // Flood fill the connected component of same-block, same-facing panels.
         List<BlockPos> component = new ArrayList<>();
@@ -88,7 +89,7 @@ public final class PanelGroupManager {
             }
             for (BlockPos offset : inPlaneOffsets(facing)) {
                 BlockPos neighbor = current.offset(offset);
-                if (!seen.contains(neighbor) && isMatchingPanel(level, neighbor, facing)) {
+                if (!seen.contains(neighbor) && isMatchingPanel(level, neighbor, facing, screenUp)) {
                     seen.add(neighbor);
                     queue.add(neighbor);
                 }
@@ -119,13 +120,18 @@ public final class PanelGroupManager {
         if (isSolidRectangle) {
             int normal = axes.normal(component.get(0));
             BlockPos origin = axes.fromAB(minA, minB, normal);
+            unifySettings(level, component);
+            refreshGroupOff(level, component);
             for (BlockPos p : component) {
                 setGroupData(level, p, origin, width, height);
+                markShape(level, p, false);
             }
         } else {
             // Not a valid solid rectangle (or too big): fall back to 1x1 each.
             for (BlockPos p : component) {
                 setGroupData(level, p, p, 1, 1);
+                markShape(level, p, component.size() > 1);
+                refreshGroupOff(level, java.util.List.of(p));
             }
         }
     }
@@ -133,13 +139,146 @@ public final class PanelGroupManager {
     private static void setGroupData(Level level, BlockPos pos, BlockPos origin, int width, int height) {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof PanelBlockEntity panelBe) {
+            boolean changed = !panelBe.getGroupOrigin().equals(origin)
+                    || panelBe.getGroupWidth() != width || panelBe.getGroupHeight() != height;
             panelBe.setGroup(origin, width, height);
+            if (changed) {
+                BlockState s = level.getBlockState(pos);
+                level.sendBlockUpdated(pos, s, s, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+            }
         }
     }
 
-    private static boolean isMatchingPanel(Level level, BlockPos pos, Direction facing) {
+    /**
+     * Makes every panel of a freshly computed rectangular group carry the
+     * same url/mode/quality. Source: the panel with a non-empty URL (smallest
+     * x,y,z wins), else the smallest-coordinate panel. Because all members
+     * hold the settings, merge/split/break of the representative never loses them.
+     */
+    private static void unifySettings(Level level, List<BlockPos> component) {
+        List<PanelBlockEntity> bes = new ArrayList<>();
+        for (BlockPos p : component) {
+            if (level.getBlockEntity(p) instanceof PanelBlockEntity pb) {
+                bes.add(pb);
+            }
+        }
+        if (bes.isEmpty()) {
+            return;
+        }
+        bes.sort(java.util.Comparator.comparingInt((PanelBlockEntity b) -> b.getBlockPos().getX())
+                .thenComparingInt(b -> b.getBlockPos().getY())
+                .thenComparingInt(b -> b.getBlockPos().getZ()));
+        PanelBlockEntity src = bes.get(0);
+        // Locked panels win over everything: a lock must never be overwritten by
+        // an adjacent unlocked panel (merge / extend of a locked group).
+        boolean picked = false;
+        for (PanelBlockEntity b : bes) {
+            if (b.getLock().locked()) {
+                src = b;
+                picked = true;
+                break;
+            }
+        }
+        if (!picked) {
+            for (PanelBlockEntity b : bes) {
+                if (b.isConfigured()) {
+                    src = b;
+                    break;
+                }
+            }
+        }
+        for (PanelBlockEntity b : bes) {
+            copySettings(level, src, b);
+        }
+    }
+
+    private static void copySettings(Level level, PanelBlockEntity from, PanelBlockEntity to) {
+        if (from == to) {
+            return;
+        }
+        if (from.isConfigured() == to.isConfigured() && from.getScreenUpRef() == to.getScreenUpRef() && from.getUrl().equals(to.getUrl()) && from.getMode() == to.getMode()
+                && from.getQuality() == to.getQuality() && from.getVolume() == to.getVolume()
+                && from.isMuted() == to.isMuted() && from.getLock().equals(to.getLock())
+                && from.getRange() == to.getRange()) {
+            return;
+        }
+        to.setUrlAndMode(from.getUrl(), from.getMode());
+        to.setQuality(from.getQuality());
+        to.setVolumeState(from.getVolume(), from.isMuted());
+        to.setConfigured(from.isConfigured());
+        to.setLock(from.getLock());
+        to.setRange(from.getRange());
+        to.setScreenUpRef(from.getScreenUpRef());
+        BlockState s = level.getBlockState(to.getBlockPos());
+        level.sendBlockUpdated(to.getBlockPos(), s, s, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+    }
+
+    /** After the representative's settings changed, copy them to every other panel of its group. */
+    public static void propagateSettings(Level level, PanelBlockEntity rep) {
+        Direction facing = rep.getBlockState().getValue(PanelBlock.FACING);
+        Axis2D axes = axesFor(facing);
+        BlockPos o = rep.getGroupOrigin();
+        for (int a = 0; a < rep.getGroupWidth(); a++) {
+            for (int b = 0; b < rep.getGroupHeight(); b++) {
+                BlockPos p = axes.fromAB(axes.a(o) + a, axes.b(o) + b, axes.normal(o));
+                if (!p.equals(rep.getBlockPos()) && level.getBlockEntity(p) instanceof PanelBlockEntity pb
+                        && pb.getGroupOrigin().equals(o)) {
+                    copySettings(level, rep, pb);
+                }
+            }
+        }
+    }
+
+    /** Sets groupOff on every given panel = (any of them has enabled=false); syncs only on change. */
+    private static void refreshGroupOff(Level level, List<BlockPos> members) {
+        boolean off = false;
+        for (BlockPos p : members) {
+            if (level.getBlockEntity(p) instanceof PanelBlockEntity pb && !pb.isEnabled()) {
+                off = true;
+                break;
+            }
+        }
+        for (BlockPos p : members) {
+            if (level.getBlockEntity(p) instanceof PanelBlockEntity pb && pb.isGroupOff() != off) {
+                pb.setGroupOff(off);
+                BlockState s = level.getBlockState(p);
+                level.sendBlockUpdated(p, s, s, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+            }
+        }
+    }
+
+    /** Call after a panel's redstone state changed: recompute groupOff for its whole group. */
+    public static void onPowerChanged(Level level, PanelBlockEntity changed) {
+        Direction facing = changed.getBlockState().getValue(PanelBlock.FACING);
+        Axis2D axes = axesFor(facing);
+        BlockPos o = changed.getGroupOrigin();
+        List<BlockPos> members = new ArrayList<>();
+        for (int a = 0; a < changed.getGroupWidth(); a++) {
+            for (int b = 0; b < changed.getGroupHeight(); b++) {
+                BlockPos p = axes.fromAB(axes.a(o) + a, axes.b(o) + b, axes.normal(o));
+                if (level.getBlockEntity(p) instanceof PanelBlockEntity pb && pb.getGroupOrigin().equals(o)) {
+                    members.add(p);
+                }
+            }
+        }
+        if (members.isEmpty()) {
+            members.add(changed.getBlockPos());
+        }
+        refreshGroupOff(level, members);
+    }
+
+    private static void markShape(Level level, BlockPos pos, boolean invalid) {
+        if (level.getBlockEntity(pos) instanceof PanelBlockEntity pb && pb.isInvalidShape() != invalid) {
+            pb.setInvalidShape(invalid);
+            BlockState s = level.getBlockState(pos);
+            level.sendBlockUpdated(pos, s, s, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);
+        }
+    }
+
+    private static boolean isMatchingPanel(Level level, BlockPos pos, Direction facing, int screenUp) {
         BlockState state = level.getBlockState(pos);
-        return state.getBlock() instanceof PanelBlock && state.getValue(PanelBlock.FACING) == facing;
+        return state.getBlock() instanceof PanelBlock && state.getValue(PanelBlock.FACING) == facing
+                && true; // screen_up no longer separates groups
     }
 
     private static BlockPos[] inPlaneOffsets(Direction facing) {

@@ -39,6 +39,18 @@ public class PanelBlock extends Block implements EntityBlock {
     // DirectionProperty was removed in MC 1.21.5+; BlockStateProperties.FACING
     // is now a plain EnumProperty<Direction>.
     public static final EnumProperty<Direction> FACING = BlockStateProperties.FACING;
+    // Which horizontal direction the screen's top edge points to (floor/ceiling panels only;
+    // always 0 on walls). Same encoding as MediaBlock: SOUTH=0, WEST=1, NORTH=2, EAST=3.
+    public static final net.minecraft.world.level.block.state.properties.IntegerProperty SCREEN_UP = net.minecraft.world.level.block.state.properties.IntegerProperty.create("screen_up", 0, 3);
+
+    private static int encodeScreenUp(Direction horizontal) {
+        return switch (horizontal) {
+            case WEST -> 1;
+            case NORTH -> 2;
+            case EAST -> 3;
+            default -> 0;
+        };
+    }
 
     // Fixed 16x2x16 shape (matches the current thickness=2 model). Will become
     // thickness-dependent once the thickness slider (BlockState/BE) is wired up.
@@ -51,12 +63,77 @@ public class PanelBlock extends Block implements EntityBlock {
 
     public PanelBlock(Properties properties) {
         super(properties);
-        this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.UP));
+        this.registerDefaultState(this.stateDefinition.any().setValue(FACING, Direction.UP).setValue(SCREEN_UP, 0));
+    }
+
+    // Shift + empty-hand right-click opens the settings menu of the group's
+    // representative panel (the one at groupOrigin). A non-empty hand with
+    // Shift never reaches here (vanilla goes straight to the item), and
+    // plain right-click returns PASS so normal block placement still works.
+    @Override
+    protected net.minecraft.world.InteractionResult useItemOn(net.minecraft.world.item.ItemStack stack,
+            BlockState state, Level level, BlockPos pos, net.minecraft.world.entity.player.Player player,
+            net.minecraft.world.InteractionHand hand, net.minecraft.world.phys.BlockHitResult hitResult) {
+        if (!player.isShiftKeyDown()) {
+            // PASS would skip useWithoutItem even for an empty hand.
+            return stack.isEmpty()
+                    ? net.minecraft.world.InteractionResult.TRY_WITH_EMPTY_HAND
+                    : net.minecraft.world.InteractionResult.PASS;
+        }
+        if (!level.isClientSide() && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            if (!io.github.kiyo.mediapanelhologram.network.LockAccess.canOperate(serverPlayer, level, pos)) {
+                serverPlayer.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.mediapanelhologram.lock.denied"));
+                return net.minecraft.world.InteractionResult.SUCCESS;
+            }
+            PanelBlockEntity target = null;
+            if (level.getBlockEntity(pos) instanceof PanelBlockEntity own) {
+                target = own;
+                BlockPos origin = own.getGroupOrigin();
+                if (!origin.equals(pos)
+                        && level.getBlockState(origin).getBlock() instanceof PanelBlock
+                        && level.getBlockEntity(origin) instanceof PanelBlockEntity rep) {
+                    target = rep;
+                }
+            }
+            if (target != null) {
+                dev.architectury.registry.menu.MenuRegistry.openExtendedMenu(serverPlayer, target);
+            }
+        }
+        return net.minecraft.world.InteractionResult.SUCCESS;
+    }
+
+    // Plain empty-hand right-click: open the browser screen of the group's
+    // representative panel (client side only), Browser/Video modes only.
+    @Override
+    protected net.minecraft.world.InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos,
+            net.minecraft.world.entity.player.Player player, net.minecraft.world.phys.BlockHitResult hitResult) {
+        if (!(level.getBlockEntity(pos) instanceof PanelBlockEntity own)) {
+            return net.minecraft.world.InteractionResult.PASS;
+        }
+        BlockPos origin = own.getGroupOrigin();
+        PanelBlockEntity target = own;
+        if (!origin.equals(pos) && level.getBlockEntity(origin) instanceof PanelBlockEntity rep) {
+            target = rep;
+        }
+        MediaMode m = target.getMode();
+        if (m == MediaMode.BROWSER || m == MediaMode.VIDEO) {
+            if (!io.github.kiyo.mediapanelhologram.network.LockAccess.canOperate(player, level, pos)) {
+                if (!level.isClientSide()) {
+                    player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.mediapanelhologram.lock.denied"));
+                }
+                return net.minecraft.world.InteractionResult.SUCCESS;
+            }
+            if (level.isClientSide()) {
+                io.github.kiyo.mediapanelhologram.browser.MediaBrowserOpenerProvider.open(target.getBlockPos());
+            }
+            return net.minecraft.world.InteractionResult.SUCCESS;
+        }
+        return net.minecraft.world.InteractionResult.PASS;
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, SCREEN_UP);
     }
 
     @Override
@@ -79,12 +156,16 @@ public class PanelBlock extends Block implements EntityBlock {
         // clicking on any part of an existing PanelBlock inherits that
         // panel's FACING directly, instead of using the raw clicked face.
         if (actuallyClickedState.getBlock() instanceof PanelBlock) {
-            return this.defaultBlockState().setValue(FACING, actuallyClickedState.getValue(FACING));
+            return this.defaultBlockState()
+                    .setValue(FACING, actuallyClickedState.getValue(FACING))
+                    .setValue(SCREEN_UP, actuallyClickedState.getValue(SCREEN_UP));
         }
         // Otherwise (placing against a normal block): panel's display face
         // points opposite the face the player clicked (i.e. toward the
         // player), same convention as item frames.
-        return this.defaultBlockState().setValue(FACING, clickedFace);
+        int screenUp = clickedFace.getAxis() == Direction.Axis.Y
+                ? encodeScreenUp(context.getHorizontalDirection()) : 0;
+        return this.defaultBlockState().setValue(FACING, clickedFace).setValue(SCREEN_UP, screenUp);
     }
 
     @Override
@@ -132,7 +213,11 @@ public class PanelBlock extends Block implements EntityBlock {
         BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof PanelBlockEntity panelBe) {
             boolean hasSignal = level.hasNeighborSignal(pos);
+            boolean wasEnabled = panelBe.isEnabled();
             panelBe.setEnabled(!hasSignal);
+            if (wasEnabled != panelBe.isEnabled()) {
+                PanelGroupManager.onPowerChanged(level, panelBe);
+            }
         }
     }
 
@@ -141,7 +226,7 @@ public class PanelBlock extends Block implements EntityBlock {
         // Unlike the old onRemove, this is only called when the block is
         // actually gone (not on a plain BlockState property change), so no
         // extra "did the block type change" check is needed here.
-        PanelGroupManager.onRemoved(level, pos, state.getValue(FACING));
+        PanelGroupManager.onRemoved(level, pos, state.getValue(FACING), state.getValue(SCREEN_UP));
         super.affectNeighborsAfterRemoval(state, level, pos, movedByPiston);
     }
 }

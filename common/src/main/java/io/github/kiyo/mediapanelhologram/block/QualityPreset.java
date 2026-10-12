@@ -11,7 +11,7 @@ public enum QualityPreset {
     P1440("1440p", 2560, 1440, 5),
     P2160("4K", 3840, 2160, 8);
 
-    public static final QualityPreset DEFAULT = P720;
+    public static final QualityPreset DEFAULT = P1080;
 
     private final String label;
     private final int width;

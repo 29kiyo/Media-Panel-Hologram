@@ -44,6 +44,14 @@ public final class MCEF {
     private static MCEFApp app;
     private static MCEFClient client;
 
+    // MPH-SHUTDOWN-FLAG: once shut down, never initialize again. The "Stopping!" path calls
+    // setScreenAndShow after shutdown, which made CefInitMixin run initialize() on a dead CEF.
+    private static volatile boolean shutDown;
+
+    public static boolean wasShutDown() {
+        return shutDown;
+    }
+
     private static final ArrayList<MCEFInitListener> awaitingInit = new ArrayList<>();
 
     public static void scheduleForInit(MCEFInitListener task) {
@@ -75,6 +83,9 @@ public final class MCEF {
      * This should not be called by anything else.
      */
     public static boolean initialize() {
+        if (shutDown) {
+            return false;
+        }
         MCEF.getLogger().info("Initializing CEF on " + MCEFPlatform.getPlatform().getNormalizedName() + "...");
         if (CefUtil.init()) {
             app = new MCEFApp(CefUtil.getCefApp());
@@ -175,6 +186,7 @@ public final class MCEF {
     public static void shutdown() {
         if (isInitialized()) {
             CefUtil.shutdown();
+            shutDown = true;
             client = null;
             app = null;
         }

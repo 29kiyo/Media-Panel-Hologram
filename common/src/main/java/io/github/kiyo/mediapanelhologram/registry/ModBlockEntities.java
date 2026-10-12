@@ -23,7 +23,7 @@ public final class ModBlockEntities {
 
     public static final RegistrySupplier<BlockEntityType<MediaBlockEntity>> MEDIA_BLOCK =
             BLOCK_ENTITIES.register("media_block",
-                    () -> new BlockEntityType<>(MediaBlockEntity::new, Set.of(ModBlocks.MEDIA_BLOCK.get())));
+                    () -> new BlockEntityType<>(MediaBlockEntity::new, Set.of(ModBlocks.MEDIA_BLOCK.get(), ModBlocks.HOLOGRAM_BLOCK.get())));
 
     public static void init() {
         BLOCK_ENTITIES.register();

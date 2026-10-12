@@ -39,3 +39,13 @@ Local modifications (not in upstream; each was a fix for a bug reproduced only i
 - MemoryPageScheme route /error?c=NAME&u=URL: dark "Failed to load page" screen shown on the block face for network-level load errors
   (shown by ClientBrowserSessionManager#onLoadError; HTTP 4xx/5xx are not replaced).
 - /player page: window.mph.toggleCaptions() (IFrame API captions module via loadModule/setOption; undocumented calls, verified in practice).
+
+- CefInitMixin: the scheduled MCEF.initialize() task now returns immediately when MCEF is already initialized
+  (several screen changes before startup queued several tasks: repeated 1 s sleeps on the main thread and
+  "Settings can only be passed to CEF before createClient is called the first time.").
+
+- MCEF: a shutDown flag (wasShutDown()) is set by shutdown(); initialize() and CefInitMixin's scheduled task do
+  nothing afterwards (game exit calls setScreenAndShow after shutdown, which re-ran initialize() on a dead CEF).
+
+- MemoryPageScheme: /player and /file pages gained window.mph.state() (position/playing/rate/duration), read by the
+  MPH-POS console reporter (MphScripts.REPORTER).

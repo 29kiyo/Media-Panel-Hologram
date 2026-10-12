@@ -1,10 +1,108 @@
 {
   "variants": {
-    "facing=up": { "model": "mediapanelhologram:block/panel" },
-    "facing=down": { "model": "mediapanelhologram:block/panel", "x": 180 },
-    "facing=north": { "model": "mediapanelhologram:block/panel", "x": 90 },
-    "facing=south": { "model": "mediapanelhologram:block/panel", "x": 90, "y": 180 },
-    "facing=west": { "model": "mediapanelhologram:block/panel", "x": 90, "y": 270 },
-    "facing=east": { "model": "mediapanelhologram:block/panel", "x": 90, "y": 90 }
+    "facing=up,screen_up=0": {
+      "model": "mediapanelhologram:block/panel"
+    },
+    "facing=up,screen_up=1": {
+      "model": "mediapanelhologram:block/panel"
+    },
+    "facing=up,screen_up=2": {
+      "model": "mediapanelhologram:block/panel"
+    },
+    "facing=up,screen_up=3": {
+      "model": "mediapanelhologram:block/panel"
+    },
+    "facing=down,screen_up=0": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 180
+    },
+    "facing=down,screen_up=1": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 180
+    },
+    "facing=down,screen_up=2": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 180
+    },
+    "facing=down,screen_up=3": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 180
+    },
+    "facing=north,screen_up=0": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90
+    },
+    "facing=north,screen_up=1": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90
+    },
+    "facing=north,screen_up=2": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90
+    },
+    "facing=north,screen_up=3": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90
+    },
+    "facing=south,screen_up=0": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,screen_up=1": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,screen_up=2": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 180
+    },
+    "facing=south,screen_up=3": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 180
+    },
+    "facing=west,screen_up=0": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,screen_up=1": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,screen_up=2": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 270
+    },
+    "facing=west,screen_up=3": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 270
+    },
+    "facing=east,screen_up=0": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,screen_up=1": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,screen_up=2": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 90
+    },
+    "facing=east,screen_up=3": {
+      "model": "mediapanelhologram:block/panel",
+      "x": 90,
+      "y": 90
+    }
   }
 }

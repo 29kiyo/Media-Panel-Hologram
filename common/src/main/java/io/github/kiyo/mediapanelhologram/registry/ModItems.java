@@ -22,6 +22,14 @@ public final class ModItems {
             () -> new BlockItem(ModBlocks.MEDIA_BLOCK.get(),
                     new Item.Properties().setId(itemKey("media_block"))));
 
+    public static final RegistrySupplier<Item> HOLOGRAM_BLOCK = ITEMS.register("hologram_block",
+            () -> new BlockItem(ModBlocks.HOLOGRAM_BLOCK.get(),
+                    new Item.Properties().setId(itemKey("hologram_block"))));
+
+    public static final RegistrySupplier<Item> REMOTE = ITEMS.register("remote",
+            () -> new io.github.kiyo.mediapanelhologram.item.RemoteItem(
+                    new Item.Properties().setId(itemKey("remote")).stacksTo(1)));
+
     public static void init() {
         ITEMS.register();
     }

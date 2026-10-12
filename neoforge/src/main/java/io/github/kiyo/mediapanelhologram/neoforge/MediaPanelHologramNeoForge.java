@@ -34,6 +34,7 @@ public final class MediaPanelHologramNeoForge {
             // below: these only set static fields, no registry access.
             BrowserEngineProvider.setInstance(new MCEFBrowserEngine());
             MediaBrowserOpenerProvider.setInstance(MediaBrowserScreen::openFrom);
+            io.github.kiyo.mediapanelhologram.item.RemoteOpenerProvider.setInstance(io.github.kiyo.mediapanelhologram.client.screen.RemoteScreen::openFrom);
 
             // Explicit CEF shutdown on client stop -- NeoForge counterpart of
             // the Fabric side's ClientLifecycleEvents.CLIENT_STOPPING handler.
@@ -103,6 +104,9 @@ public final class MediaPanelHologramNeoForge {
             eventBus.addListener((FMLClientSetupEvent event) ->
                     BlockEntityRendererRegistry.register(
                             ModBlockEntities.MEDIA_BLOCK.get(), MediaBlockEntityRenderer::new));
+            eventBus.addListener((FMLClientSetupEvent event) ->
+                    BlockEntityRendererRegistry.register(
+                            ModBlockEntities.PANEL.get(), io.github.kiyo.mediapanelhologram.client.renderer.PanelBlockEntityRenderer::new));
 
             // See the matching Fabric-side comment: pruning stale browser
             // sessions must not happen inside extractRenderState (mid-frame),

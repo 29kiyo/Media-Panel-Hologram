@@ -39,13 +39,37 @@ import org.jetbrains.annotations.Nullable;
  * removeLoadHandler), since we own that fork.
  */
 public final class MCEFBrowserSession implements IBrowserSession {
+    @Override
+    public String getCurrentUrl() {
+        return browser.getURL();
+    }
+
     private final MCEFBrowser browser;
     private volatile boolean closed = false;
+    @Nullable
+    private volatile java.util.function.Consumer<String> consoleListener;
+
+    @Override
+    public void setConsoleListener(@Nullable java.util.function.Consumer<String> listener) {
+        this.consoleListener = listener;
+    }
     @Nullable
     private volatile BrowserLoadListener loadListener;
 
     MCEFBrowserSession(MCEFBrowser browser) {
         this.browser = browser;
+        // Same pattern as the load handler: MCEFClient broadcasts to every handler, so filter by browser.
+        MCEF.getClient().addDisplayHandler(new org.cef.handler.CefDisplayHandlerAdapter() {
+            @Override
+            public boolean onConsoleMessage(CefBrowser cefBrowser, org.cef.CefSettings.LogSeverity level,
+                    String message, String source, int line) {
+                java.util.function.Consumer<String> l = consoleListener;
+                if (!closed && cefBrowser == browser && l != null && message != null && message.startsWith("MPH-")) {
+                    l.accept(message);
+                }
+                return false;
+            }
+        });
         MCEF.getClient().addLoadHandler(new CefLoadHandler() {
             @Override
             public void onLoadingStateChange(CefBrowser cefBrowser, boolean isLoading, boolean canGoBack,

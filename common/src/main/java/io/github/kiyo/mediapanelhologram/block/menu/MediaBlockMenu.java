@@ -9,7 +9,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.item.ItemStack;
 
-import io.github.kiyo.mediapanelhologram.block.entity.MediaBlockEntity;
+import io.github.kiyo.mediapanelhologram.block.entity.MediaSource;
 import io.github.kiyo.mediapanelhologram.registry.ModBlocks;
 import io.github.kiyo.mediapanelhologram.registry.ModMenuTypes;
 
@@ -47,9 +47,9 @@ public class MediaBlockMenu extends AbstractContainerMenu {
     }
 
     @Nullable
-    public MediaBlockEntity getBlockEntity() {
+    public MediaSource getBlockEntity() {
         return access.evaluate((level, blockPos) ->
-                level.getBlockEntity(blockPos) instanceof MediaBlockEntity mediaBe ? mediaBe : null, null);
+                level.getBlockEntity(blockPos) instanceof MediaSource mediaBe ? mediaBe : null, null);
     }
 
     @Override
@@ -59,6 +59,7 @@ public class MediaBlockMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return stillValid(access, player, ModBlocks.MEDIA_BLOCK.get());
+        return access.evaluate((level, blockPos) -> level.getBlockEntity(blockPos) instanceof MediaSource && io.github.kiyo.mediapanelhologram.network.RemoteAccess.canReach(player, blockPos)
+                && io.github.kiyo.mediapanelhologram.network.LockAccess.canOperate(player, level, blockPos), false);
     }
 }

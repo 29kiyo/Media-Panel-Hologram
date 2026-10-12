@@ -36,6 +36,7 @@ public final class MediaPanelHologramFabricClient implements ClientModInitialize
         // screen registration below on the NeoForge side).
         BrowserEngineProvider.setInstance(new MCEFBrowserEngine());
         MediaBrowserOpenerProvider.setInstance(MediaBrowserScreen::openFrom);
+        io.github.kiyo.mediapanelhologram.item.RemoteOpenerProvider.setInstance(io.github.kiyo.mediapanelhologram.client.screen.RemoteScreen::openFrom);
 
         // Explicit CEF shutdown on client stop (user-reported issue: cef_server.exe
         // processes and high CPU usage accumulated in Task Manager across repeated
@@ -60,6 +61,7 @@ public final class MediaPanelHologramFabricClient implements ClientModInitialize
 
         // Always-on client setup (not gated by the MCEF spike env var below).
         BlockEntityRendererRegistry.register(ModBlockEntities.MEDIA_BLOCK.get(), MediaBlockEntityRenderer::new);
+        BlockEntityRendererRegistry.register(ModBlockEntities.PANEL.get(), io.github.kiyo.mediapanelhologram.client.renderer.PanelBlockEntityRenderer::new);
         // Pruning stale browser sessions is deliberately NOT done inside
         // extractRenderState (per-BlockEntity, mid-frame): closing a session
         // there can race with another MediaBlock's already-queued draw for

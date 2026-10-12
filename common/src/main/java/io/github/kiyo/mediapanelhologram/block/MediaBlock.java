@@ -22,6 +22,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -110,6 +111,8 @@ public class MediaBlock extends Block implements EntityBlock {
      * top edge of the screen points to. Encoded as 0=SOUTH, 1=WEST, 2=NORTH, 3=EAST.
      */
     public static final IntegerProperty SCREEN_UP_PROPERTY = IntegerProperty.create("screen_up", 0, 3);
+    /** True while a redstone signal is received: the screen/hologram is turned off (same rule as Panel). */
+    public static final BooleanProperty POWERED_PROPERTY = BooleanProperty.create("powered");
     /** Player pitch (degrees) beyond which the screen goes on the top/bottom face. Tentative value. */
     private static final float VERTICAL_PITCH_THRESHOLD = 60.0f;
 
@@ -119,12 +122,13 @@ public class MediaBlock extends Block implements EntityBlock {
                 .setValue(CAMOUFLAGED_PROPERTY, false)
                 .setValue(LIGHT_LEVEL_PROPERTY, 0)
                 .setValue(FACING, Direction.SOUTH)
-                .setValue(SCREEN_UP_PROPERTY, 0));
+                .setValue(SCREEN_UP_PROPERTY, 0)
+                .setValue(POWERED_PROPERTY, false));
     }
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(CAMOUFLAGED_PROPERTY, LIGHT_LEVEL_PROPERTY, FACING, SCREEN_UP_PROPERTY);
+        builder.add(CAMOUFLAGED_PROPERTY, LIGHT_LEVEL_PROPERTY, FACING, SCREEN_UP_PROPERTY, POWERED_PROPERTY);
     }
 
     @Override
@@ -146,7 +150,20 @@ public class MediaBlock extends Block implements EntityBlock {
         }
         return this.defaultBlockState()
                 .setValue(FACING, facing)
-                .setValue(SCREEN_UP_PROPERTY, screenUp);
+                .setValue(SCREEN_UP_PROPERTY, screenUp)
+                .setValue(POWERED_PROPERTY, context.getLevel().hasNeighborSignal(context.getClickedPos()));
+    }
+
+    @Override
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock,
+            Orientation orientation, boolean movedByPiston) {
+        super.neighborChanged(state, level, pos, neighborBlock, orientation, movedByPiston);
+        if (!level.isClientSide()) {
+            boolean powered = level.hasNeighborSignal(pos);
+            if (powered != state.getValue(POWERED_PROPERTY)) {
+                level.setBlock(pos, state.setValue(POWERED_PROPERTY, powered), Block.UPDATE_CLIENTS);
+            }
+        }
     }
 
     private static int encodeScreenUp(Direction horizontal) {
@@ -183,12 +200,22 @@ public class MediaBlock extends Block implements EntityBlock {
 
         if (player.isShiftKeyDown()) {
             if (!level.isClientSide() && player instanceof ServerPlayer serverPlayer) {
-                MenuRegistry.openExtendedMenu(serverPlayer, mediaBe);
+                if (!io.github.kiyo.mediapanelhologram.network.LockAccess.canOperate(serverPlayer, level, pos)) {
+                    serverPlayer.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.mediapanelhologram.lock.denied"));
+                } else {
+                    MenuRegistry.openExtendedMenu(serverPlayer, mediaBe);
+                }
             }
             return InteractionResult.SUCCESS;
         }
 
         if (stack.getItem() instanceof BlockItem blockItem && !mediaBe.hasCamouflage()) {
+            if (!io.github.kiyo.mediapanelhologram.network.LockAccess.canOperate(player, level, pos)) {
+                if (!level.isClientSide()) {
+                    player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.mediapanelhologram.lock.denied"));
+                }
+                return InteractionResult.SUCCESS;
+            }
             if (!level.isClientSide()) {
                 BlockState camouflageState = CamouflagePlacementContext.resolveState(blockItem, player, hand, stack, hitResult);
                 mediaBe.setCamouflageItem(new ItemStack(blockItem));
@@ -214,6 +241,12 @@ public class MediaBlock extends Block implements EntityBlock {
         }
 
         if (mediaBe.hasCamouflage()) {
+            if (!io.github.kiyo.mediapanelhologram.network.LockAccess.canOperate(player, level, pos)) {
+                if (!level.isClientSide()) {
+                    player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.mediapanelhologram.lock.denied"));
+                }
+                return InteractionResult.SUCCESS;
+            }
             if (!level.isClientSide()) {
                 ItemStack removed = mediaBe.getCamouflageItem();
                 mediaBe.setCamouflageItem(ItemStack.EMPTY);
@@ -229,6 +262,12 @@ public class MediaBlock extends Block implements EntityBlock {
         }
 
         if (mediaBe.getMode() == MediaMode.BROWSER || mediaBe.getMode() == MediaMode.VIDEO) {
+            if (!io.github.kiyo.mediapanelhologram.network.LockAccess.canOperate(player, level, pos)) {
+                if (!level.isClientSide()) {
+                    player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.mediapanelhologram.lock.denied"));
+                }
+                return InteractionResult.SUCCESS;
+            }
             if (level.isClientSide()) {
                 MediaBrowserOpenerProvider.open(pos);
             }
