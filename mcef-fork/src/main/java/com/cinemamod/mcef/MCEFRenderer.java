@@ -123,7 +123,59 @@ public class MCEFRenderer {
         }
     }
 
+    // Dev-only (MPH_PERF=1): upload cost on the render thread (onPaint is dispatched there).
+    private static final boolean PERF = "1".equals(System.getenv("MPH_PERF"));
+    private static long perfFullCalls, perfFullNanos, perfPartCalls, perfPartNanos, perfBytes, perfLastLog;
+
+    private static void perfRecord(boolean full, long nanos, long bytes) {
+        if (full) {
+            perfFullCalls++;
+            perfFullNanos += nanos;
+        } else {
+            perfPartCalls++;
+            perfPartNanos += nanos;
+        }
+        perfBytes += bytes;
+        long now = System.nanoTime();
+        if (perfLastLog == 0) {
+            perfLastLog = now;
+        }
+        if (now - perfLastLog >= 1_000_000_000L) {
+            org.slf4j.LoggerFactory.getLogger("MPH-PERF").info(
+                    "paint full={} calls/{} us, partial={} calls/{} us, uploadedMB={}",
+                    perfFullCalls, perfFullNanos / 1000, perfPartCalls, perfPartNanos / 1000, perfBytes >> 20);
+            perfFullCalls = perfFullNanos = perfPartCalls = perfPartNanos = perfBytes = 0;
+            perfLastLog = now;
+        }
+    }
+
     protected void onPaint(ByteBuffer buffer, int width, int height) {
+        if (!PERF) {
+            onPaintFull0(buffer, width, height);
+            return;
+        }
+        long t0 = System.nanoTime();
+        try {
+            onPaintFull0(buffer, width, height);
+        } finally {
+            perfRecord(true, System.nanoTime() - t0, (long) width * height * 4);
+        }
+    }
+
+    protected void onPaint(ByteBuffer buffer, int x, int y, int width, int height) {
+        if (!PERF) {
+            onPaintPart0(buffer, x, y, width, height);
+            return;
+        }
+        long t0 = System.nanoTime();
+        try {
+            onPaintPart0(buffer, x, y, width, height);
+        } finally {
+            perfRecord(false, System.nanoTime() - t0, (long) width * height * 4);
+        }
+    }
+
+    private void onPaintFull0(ByteBuffer buffer, int width, int height) {
         if (texture == null || textureWidth != width || textureHeight != height) {
             GpuTexture old = texture;
 
@@ -164,7 +216,7 @@ public class MCEFRenderer {
         }
     }
 
-    protected void onPaint(ByteBuffer buffer, int x, int y, int width, int height) {
+    private void onPaintPart0(ByteBuffer buffer, int x, int y, int width, int height) {
         if (texture instanceof GlTexture glTexture) {
             GlStateManager._bindTexture(glTexture.glId());
             glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height, GL_BGRA,

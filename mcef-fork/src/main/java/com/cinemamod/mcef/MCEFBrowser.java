@@ -178,8 +178,49 @@ public class MCEFBrowser extends CefBrowserOsr {
     }
 
     // Graphics
+    // Dev-only (MPH_PERF=1): count CEF onPaint arrivals BEFORE any early return / thread hop.
+    private static final boolean PERF_ENTRY = "1".equals(System.getenv("MPH_PERF"));
+    private static long perfEntryCalls, perfEntryRects, perfEntryPixels, perfEntryLast;
+    // Dev-only (MPH_PERF=1): which branch of onPaint the arrivals take.
+    private static final long[] PB = new long[3];
+    private static long perfBranchLast;
+    private static synchronized void perfBranch(int i, Object tex) {
+        PB[i]++;
+        long now = System.nanoTime();
+        if (perfBranchLast == 0) {
+            perfBranchLast = now;
+        }
+        if (now - perfBranchLast >= 1_000_000_000L) {
+            org.slf4j.LoggerFactory.getLogger("MPH-PERF").info(
+                    "onPaint branches: passedThreadCheck={} noTextureReturn={} partialLoop={} (texture class={})",
+                    PB[0], PB[1], PB[2], tex == null ? "-" : tex.getClass().getName());
+            PB[0] = PB[1] = PB[2] = 0;
+            perfBranchLast = now;
+        }
+    }
+
+    private static synchronized void perfEntry(boolean popup, int rects, int w, int h) {
+        perfEntryCalls++;
+        perfEntryRects += rects;
+        perfEntryPixels += (long) w * h;
+        long now = System.nanoTime();
+        if (perfEntryLast == 0) {
+            perfEntryLast = now;
+        }
+        if (now - perfEntryLast >= 1_000_000_000L) {
+            org.slf4j.LoggerFactory.getLogger("MPH-PERF").info(
+                    "cef-onPaint arrivals={} rects={} framePixelsMP={} (thread={})",
+                    perfEntryCalls, perfEntryRects, perfEntryPixels / 1_000_000, Thread.currentThread().getName());
+            perfEntryCalls = perfEntryRects = perfEntryPixels = 0;
+            perfEntryLast = now;
+        }
+    }
+
     @Override
     public void onPaint(CefBrowser browser, boolean popup, Rectangle[] dirtyRects, ByteBuffer buffer, int width, int height) {
+        if (PERF_ENTRY) {
+            perfEntry(popup, dirtyRects.length, width, height);
+        }
         // nothing to update
         if (dirtyRects.length == 0)
             return;
@@ -214,6 +255,9 @@ public class MCEFBrowser extends CefBrowserOsr {
             return;
         }
 
+        if (PERF_ENTRY) {
+            perfBranch(0, null);
+        }
         if (!popup) {
             if (lastWidth != width || lastHeight != height) {
                 lastWidth = width;
@@ -222,6 +266,9 @@ public class MCEFBrowser extends CefBrowserOsr {
                 // this also sets up the texture size and creates the texture
                 renderer.onPaint(buffer, width, height);
             } else {
+                if (PERF_ENTRY) {
+                    perfBranch(renderer.getTextureID() == 0 ? 1 : 2, renderer.getTexture());
+                }
                 if (renderer.getTextureID() == 0) return;
                 GlStateManager._bindTexture(renderer.getTextureID());
                 GlStateManager._pixelStore(GL_UNPACK_ROW_LENGTH, width);
