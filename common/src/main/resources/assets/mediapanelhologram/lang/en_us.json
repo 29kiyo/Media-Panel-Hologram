@@ -70,5 +70,7 @@
   "gui.mediapanelhologram.share.done": "Shared: everyone opens this page",
   "gui.mediapanelhologram.share.same": "Already shared",
   "gui.mediapanelhologram.share.blocked": "Not shared: looks like a sign-in page",
-  "gui.mediapanelhologram.share.unavailable": "This page cannot be shared"
+  "gui.mediapanelhologram.share.unavailable": "This page cannot be shared",
+  "message.mediapanelhologram.input.busy": "%s is operating this screen",
+  "gui.mediapanelhologram.input.busy": "%s is operating this screen"
 }

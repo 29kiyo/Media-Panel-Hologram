@@ -98,6 +98,14 @@ public final class ModNetworking {
                 PlaybackStatePayload.TYPE,
                 PlaybackStatePayload.STREAM_CODEC,
                 ModNetworking::handlePlaybackState);
+        NetworkManager.registerC2S(
+                InputRelayPayload.TYPE,
+                InputRelayPayload.STREAM_CODEC,
+                ModNetworking::handleInputRelay);
+        NetworkManager.registerS2C(
+                InputRelayEventPayload.TYPE,
+                InputRelayEventPayload.STREAM_CODEC,
+                ModNetworking::handleInputRelayEvent);
     }
 
     private static void handleRangeUpdate(RangeUpdatePayload payload, NetworkManager.PacketContext context) {
@@ -195,6 +203,40 @@ public final class ModNetworking {
                 NetworkManager.sendToPlayer(sp, new RemoteSyncPayload(key, cmd, p.arg()));
             }
         });
+    }
+
+    private static void handleInputRelay(InputRelayPayload p, NetworkManager.PacketContext context) {
+        context.queue(() -> {
+            if (!(context.getPlayer() instanceof ServerPlayer sp) || !(sp.level() instanceof ServerLevel level)) {
+                return;
+            }
+            net.minecraft.core.BlockPos pos = p.pos();
+            net.minecraft.core.BlockPos key = p.key();
+            if (p.kind() < 0 || p.kind() > 6 || !Double.isFinite(p.amount())) {
+                return;
+            }
+            if (!level.isLoaded(pos) || !(level.getBlockEntity(pos) instanceof MediaSource src)
+                    || !src.getSessionKey().equals(key)) {
+                return;
+            }
+            if (!RemoteAccess.canReach(sp, pos)) {
+                return;
+            }
+            if (!LockAccess.canOperate(sp, level, pos)) {
+                if (p.kind() == 1 || p.kind() == 3 || p.kind() == 4 || p.kind() == 6) {
+                    sp.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.mediapanelhologram.lock.denied"));
+                }
+                return;
+            }
+            InputRelayService.relay(level, sp, new InputRelayPayload(pos, key, p.urlHash(), p.kind(),
+                    Math.max(0, Math.min(65535, p.nx())), Math.max(0, Math.min(65535, p.ny())),
+                    Math.max(0, Math.min(4, p.button())), (p.kind() >= 4 ? Math.max(0.0, Math.min(1.0e6, p.amount())) : Math.max(-100.0, Math.min(100.0, p.amount())))));
+        });
+    }
+
+    private static void handleInputRelayEvent(InputRelayEventPayload p, NetworkManager.PacketContext context) {
+        context.queue(() -> io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager
+                .applyInput(p.key(), p.urlHash(), p.kind(), p.nx(), p.ny(), p.button(), p.amount(), p.name()));
     }
 
     private static void handlePlaybackState(PlaybackStatePayload p, NetworkManager.PacketContext context) {

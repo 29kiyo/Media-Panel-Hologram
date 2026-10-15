@@ -538,6 +538,94 @@ public final class MediaBrowserScreen extends Screen {
         }
     }
 
+    // INPUT-RELAY: mouse input is also sent to the server, which replays it on the other players' browsers.
+    private long relayActiveUntil;
+    private long relayLastMoveAt;
+    private int relayLastX = -1;
+    private int relayLastY = -1;
+    private int relayButtonsDown;
+
+    /** kind: 0 move, 1 press, 2 release, 3 wheel. px/py are texture pixels of this session. */
+    private void relayMouse(IBrowserSession session, int kind, int px, int py, int button, double amount) {
+        long now = System.currentTimeMillis();
+        if (kind == 0) {
+            if (relayButtonsDown <= 0 && now > relayActiveUntil) {
+                return;
+            }
+            if (now - relayLastMoveAt < 50L || (px == relayLastX && py == relayLastY)) {
+                return;
+            }
+            relayLastMoveAt = now;
+            relayLastX = px;
+            relayLastY = py;
+        } else {
+            relayActiveUntil = now + 1500L;
+            if (kind == 1) {
+                relayButtonsDown++;
+            } else if (kind == 2) {
+                relayButtonsDown = Math.max(0, relayButtonsDown - 1);
+            }
+        }
+        MediaSource src = findBlockEntity();
+        if (src == null || Minecraft.getInstance().getConnection() == null) {
+            return;
+        }
+        BlockPos key = src.getSessionKey();
+        long hash = io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.currentUrlHash(key);
+        if (hash == 0L) {
+            return;
+        }
+        int nx = (int) Math.round(px * 65535.0 / Math.max(1, session.getTextureWidth() - 1));
+        int ny = (int) Math.round(py * 65535.0 / Math.max(1, session.getTextureHeight() - 1));
+        try {
+            dev.architectury.networking.NetworkManager.sendToServer(
+                    new io.github.kiyo.mediapanelhologram.network.InputRelayPayload(pos, key, hash, kind, nx, ny,
+                            button, amount));
+        } catch (RuntimeException ignored) {
+            // not connected
+        }
+    }
+
+    /**
+     * INPUT-RELAY (keys): kind 4 press, 5 release, 6 typed. a = key code or char, scan = scancode.
+     * Never sent while a password-like field has the focus, and key presses with Ctrl/Alt/Super are not
+     * relayed (paste would use the receiver's own clipboard; zoom/reload/back would act on the receiver).
+     */
+    private void relayKey(int kind, int a, int mods, long scan) {
+        if (kind != 6 && (mods & 14) != 0) {
+            return;
+        }
+        MediaSource src = findBlockEntity();
+        if (src == null || Minecraft.getInstance().getConnection() == null) {
+            return;
+        }
+        BlockPos key = src.getSessionKey();
+        if (io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.passwordFocused(key)) {
+            return;
+        }
+        long hash = io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.currentUrlHash(key);
+        if (hash == 0L) {
+            return;
+        }
+        try {
+            dev.architectury.networking.NetworkManager.sendToServer(
+                    new io.github.kiyo.mediapanelhologram.network.InputRelayPayload(pos, key, hash, kind,
+                            Math.max(0, Math.min(65535, a)), Math.max(0, Math.min(65535, mods)), 0, (double) scan));
+        } catch (RuntimeException ignored) {
+            // not connected
+        }
+    }
+
+    /** True while another player's input is being replayed on this screen (and we are not holding a button). */
+    private boolean remoteBusy() {
+        if (relayButtonsDown > 0) {
+            return false;
+        }
+        MediaSource src = findBlockEntity();
+        return src != null && io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager
+                .remoteOperator(src.getSessionKey()) != null;
+    }
+
     private int toBrowserX(double screenX, IBrowserSession session) {
         int[] rect = drawRect(session);
         double localOnScreen = screenX - rect[0];
@@ -561,7 +649,8 @@ public final class MediaBrowserScreen extends Screen {
             return;
         }
         IBrowserSession session = currentSession();
-        if (session != null && session.isTextureReady()) {
+        if (session != null && session.isTextureReady() && !remoteBusy()) {
+            relayMouse(session, 0, toBrowserX(mouseX, session), toBrowserY(mouseY, session), 0, 0);
             session.sendMouseMove(toBrowserX(mouseX, session), toBrowserY(mouseY, session));
         }
     }
@@ -577,7 +666,8 @@ public final class MediaBrowserScreen extends Screen {
             return super.mouseClicked(event, doubleClick);
         }
         IBrowserSession session = currentSession();
-        if (session != null && session.isTextureReady()) {
+        if (session != null && session.isTextureReady() && !remoteBusy()) {
+            relayMouse(session, 1, toBrowserX(event.x(), session), toBrowserY(event.y(), session), event.buttonInfo().button(), 0);
             session.sendMousePress(toBrowserX(event.x(), session), toBrowserY(event.y(), session),
                     event.buttonInfo().button());
         }
@@ -590,7 +680,8 @@ public final class MediaBrowserScreen extends Screen {
             return super.mouseReleased(event);
         }
         IBrowserSession session = currentSession();
-        if (session != null && session.isTextureReady()) {
+        if (session != null && session.isTextureReady() && !remoteBusy()) {
+            relayMouse(session, 2, toBrowserX(event.x(), session), toBrowserY(event.y(), session), event.buttonInfo().button(), 0);
             session.sendMouseRelease(toBrowserX(event.x(), session), toBrowserY(event.y(), session),
                     event.buttonInfo().button());
         }
@@ -603,7 +694,8 @@ public final class MediaBrowserScreen extends Screen {
             return super.mouseDragged(event, dragX, dragY);
         }
         IBrowserSession session = currentSession();
-        if (session != null && session.isTextureReady()) {
+        if (session != null && session.isTextureReady() && !remoteBusy()) {
+            relayMouse(session, 0, toBrowserX(event.x(), session), toBrowserY(event.y(), session), 0, 0);
             session.sendMouseMove(toBrowserX(event.x(), session), toBrowserY(event.y(), session));
         }
         return true;
@@ -615,7 +707,8 @@ public final class MediaBrowserScreen extends Screen {
             return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
         }
         IBrowserSession session = currentSession();
-        if (session != null && session.isTextureReady()) {
+        if (session != null && session.isTextureReady() && !remoteBusy()) {
+            relayMouse(session, 3, toBrowserX(mouseX, session), toBrowserY(mouseY, session), 0, scrollY);
             session.sendMouseWheel(toBrowserX(mouseX, session), toBrowserY(mouseY, session), scrollY, 0);
         }
         return true;
@@ -654,7 +747,10 @@ public final class MediaBrowserScreen extends Screen {
                     return true;
                 }
             }
-            session.sendKeyPress(event.key(), event.scancode(), event.modifiers());
+            if (!remoteBusy()) {
+                relayKey(4, event.key(), event.modifiers(), event.scancode());
+                session.sendKeyPress(event.key(), event.scancode(), event.modifiers());
+            }
         }
         return true;
     }
@@ -669,6 +765,7 @@ public final class MediaBrowserScreen extends Screen {
         }
         IBrowserSession session = currentSession();
         if (session != null) {
+            relayKey(5, event.key(), event.modifiers(), event.scancode());
             session.sendKeyRelease(event.key(), event.scancode(), event.modifiers());
         }
         return true;
@@ -714,6 +811,16 @@ public final class MediaBrowserScreen extends Screen {
     }
 
     private void drawPreedit(GuiGraphicsExtractor g) {
+        MediaSource opSrc = findBlockEntity();
+        String op = opSrc == null ? null : io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager
+                .remoteOperator(opSrc.getSessionKey());
+        if (op != null && relayButtonsDown <= 0) {
+            String label = Component.translatable("gui.mediapanelhologram.input.busy", op).getString();
+            int lw = this.font.width(label);
+            g.fill(6, TOP_BAR_HEIGHT + 2, lw + 14, TOP_BAR_HEIGHT + 15, 0xE0000000);
+            g.text(this.font, label, 10, TOP_BAR_HEIGHT + 4, 0xFFFFD27F);
+        }
+
         if (!pageFocused) {
             return;
         }
@@ -739,6 +846,10 @@ public final class MediaBrowserScreen extends Screen {
                 IBrowserSession session = currentSession();
                 if (session != null) {
                     for (char c : Character.toChars(cp)) {
+                        if (remoteBusy()) {
+                            continue;
+                        }
+                        relayKey(6, c, 0, 0);
                         session.sendKeyTyped(c, 0);
                     }
                 }
@@ -756,7 +867,10 @@ public final class MediaBrowserScreen extends Screen {
         if (session != null) {
             int codepoint = event.codepoint();
             char c = Character.isBmpCodePoint(codepoint) ? (char) codepoint : '?';
-            session.sendKeyTyped(c, 0);
+            if (!remoteBusy()) {
+                relayKey(6, c, 0, 0);
+                session.sendKeyTyped(c, 0);
+            }
         }
         return true;
     }

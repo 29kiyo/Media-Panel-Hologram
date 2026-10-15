@@ -403,6 +403,7 @@ public final class ClientBrowserSessionManager {
                 @Override
                 public void onLoadingStateChange(boolean isLoading, boolean canGoBack, boolean canGoForward) {
                     if (isLoading) {
+                        entry.pwdFocused = true; // fail closed until the page reports (MPH-PWD)
                         entry.errorText = null;
                         entry.failedUrl = null;
                         entry.httpStatus = 0;
@@ -412,7 +413,7 @@ public final class ClientBrowserSessionManager {
                         Minecraft.getInstance().execute(() -> {
                             reapplyVolume(pos, entry);
                             if (SESSIONS.get(pos) == entry) {
-                                entry.session.executeJavaScript(MphScripts.REPORTER);
+                                entry.session.executeJavaScript(MphScripts.REPORTER + MphScripts.PWD_WATCH);
                             }
                         });
                     }
@@ -521,6 +522,13 @@ public final class ClientBrowserSessionManager {
 
     /** Parses "MPH-POS position playing rate duration" (see MphScripts.REPORTER). Called on the CEF thread. */
     private static void onConsole(BlockPos pos, Entry entry, String msg) {
+        if (msg.startsWith("MPH-PWD ")) {
+            entry.pwdFocused = msg.startsWith("MPH-PWD 1");
+            if (SYNC_DEBUG) {
+                org.slf4j.LoggerFactory.getLogger("MPH-SYNC").info("key={} password-focus={}", pos, entry.pwdFocused);
+            }
+            return;
+        }
         if (!msg.startsWith("MPH-POS ")) {
             return;
         }
@@ -731,6 +739,63 @@ public final class ClientBrowserSessionManager {
         entry.session.executeJavaScript(MphScripts.applyPlayback(position, playing, rate, seek));
     }
 
+    /** True while a password-like field has the focus in this page (or the state is not known yet): no key relay. */
+    public static boolean passwordFocused(BlockPos key) {
+        Entry e = SESSIONS.get(key);
+        return e == null || e.pwdFocused;
+    }
+
+    /** Name of the player whose mouse input was replayed on this screen within the last 1.5 s, else null. */
+    @Nullable
+    public static String remoteOperator(BlockPos key) {
+        Entry e = SESSIONS.get(key);
+        if (e == null || System.currentTimeMillis() - e.remoteAt > 1500L) {
+            return null;
+        }
+        return e.remoteName;
+    }
+
+    /** Hash of this session's current page URL (as used by the playback sync), 0 if there is no session / URL. */
+    public static long currentUrlHash(BlockPos key) {
+        Entry e = SESSIONS.get(key);
+        if (e == null) {
+            return 0L;
+        }
+        try {
+            return io.github.kiyo.mediapanelhologram.network.PlaybackUrl.hash(normUrl(e.session.getCurrentUrl()));
+        } catch (RuntimeException ex) {
+            return 0L;
+        }
+    }
+
+    /** Another player's mouse input (INPUT-RELAY): replayed only if this page has the same URL hash as theirs. */
+    public static void applyInput(BlockPos key, long urlHash, int kind, int nx, int ny, int button, double amount,
+            String name) {
+        Entry e = SESSIONS.get(key);
+        if (e == null || urlHash == 0L || !e.session.isTextureReady() || currentUrlHash(key) != urlHash) {
+            return;
+        }
+        if (kind >= 4 && e.pwdFocused) {
+            return; // never type into a password-like field of this page
+        }
+        e.remoteAt = System.currentTimeMillis();
+        e.remoteName = name;
+        IBrowserSession s = e.session;
+        int x = (int) Math.round(Math.max(0, Math.min(65535, nx)) * Math.max(0, s.getTextureWidth() - 1) / 65535.0);
+        int y = (int) Math.round(Math.max(0, Math.min(65535, ny)) * Math.max(0, s.getTextureHeight() - 1) / 65535.0);
+        switch (kind) {
+            case 0 -> s.sendMouseMove(x, y);
+            case 1 -> s.sendMousePress(x, y, button);
+            case 2 -> s.sendMouseRelease(x, y, button);
+            case 3 -> s.sendMouseWheel(x, y, amount, 0);
+            case 4 -> s.sendKeyPress(nx, (long) amount, ny);
+            case 5 -> s.sendKeyRelease(nx, (long) amount, ny);
+            case 6 -> s.sendKeyTyped((char) nx, 0);
+            default -> {
+            }
+        }
+    }
+
     private static void closeSession(Entry entry) {
         entry.session.close();
         Minecraft mc = Minecraft.getInstance();
@@ -813,6 +878,9 @@ public final class ClientBrowserSessionManager {
         volatile boolean resync;      // an apply was skipped (page shows another video): join again when the duration matches
         volatile double wantDuration; // duration of the shared video, from the last state received
         volatile long lastApplyAt; // when a shared state was last applied to this page
+        volatile long remoteAt;    // when another player's mouse input was last replayed here
+        volatile String remoteName;
+        volatile boolean pwdFocused = true; // password-like field focused (or unknown): keys are not relayed/applied
         volatile long lastCmdAt;   // when this client last sent a playback command
         final io.github.kiyo.mediapanelhologram.block.QualityPreset quality;
 

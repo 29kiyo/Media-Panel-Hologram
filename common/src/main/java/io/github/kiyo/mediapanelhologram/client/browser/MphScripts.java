@@ -74,6 +74,43 @@ public final class MphScripts {
             if(s){console.log('MPH-POS '+Number(s.p).toFixed(2)+' '+(s.pl?1:0)+' '+s.r+' '+s.d);}}catch(e){}},1000);})();
             """;
 
+    /**
+     * Tells the client whether a password-like field has the focus ("MPH-PWD 1" / "MPH-PWD 0", read by
+     * ClientBrowserSessionManager#onConsole). Counts as 1: input[type=password], autocomplete containing
+     * "password", text masked with -webkit-text-security, and any focused iframe/frame/object/embed (its
+     * content cannot be inspected). Looks into open shadow roots. Always reports the current state once
+     * per injection; the listeners are installed once per document.
+     */
+    public static final String PWD_WATCH = """
+            (function(){
+            function deep(){var e=document.activeElement;
+              while(e&&e.shadowRoot&&e.shadowRoot.activeElement){e=e.shadowRoot.activeElement;}return e;}
+            function bad(e){if(!e){return false;}var t=(e.tagName||'').toUpperCase();
+              if(t==='IFRAME'||t==='FRAME'||t==='OBJECT'||t==='EMBED'){return true;}
+              if(t!=='INPUT'){return false;}
+              if(((e.type||'')+'').toLowerCase()==='password'){return true;}
+              if(((e.getAttribute('autocomplete')||'')+'').toLowerCase().indexOf('password')>=0){return true;}
+              try{var s=getComputedStyle(e);var x=s.webkitTextSecurity||s.getPropertyValue('-webkit-text-security');
+                if(x&&x!=='none'){return true;}}catch(_){}
+              return false;}
+            function login(e){if(!e){return false;}
+              if(((e.tagName||'')+'').toUpperCase()!=='INPUT'){return false;}
+              var ty=((e.type||'')+'').toLowerCase();
+              if(ty==='email'||ty==='tel'){return true;}
+              var s=[e.name,e.id,e.getAttribute('autocomplete'),e.getAttribute('placeholder'),e.getAttribute('aria-label')].join(' ');
+              if(/(user|mail|login|signin|sign-in|account|passw|pwd|otp|2fa|verif|credential|phone|tel)/i.test(s)){return true;}
+              try{var f=e.form;if(f&&f.querySelector('input[type=password]')){return true;}}catch(_){}
+              return false;}
+            function rep(force){var e0=deep();var v=(bad(e0)||login(e0))?1:0;
+              if(force||v!==window.__mphPwdLast){window.__mphPwdLast=v;console.log('MPH-PWD '+v);}}
+            if(!window.__mphPwdW){window.__mphPwdW=true;
+              document.addEventListener('focusin',function(){rep(false);setTimeout(function(){rep(false);},0);},true);
+              document.addEventListener('focusout',function(){setTimeout(function(){rep(false);},0);},true);
+              window.addEventListener('blur',function(){setTimeout(function(){rep(false);},0);},true);
+              setInterval(function(){rep(false);},300);}
+            rep(true);})();
+            """;
+
     /** Applies a shared playback state: rate, optional seek, then play or pause. Never throws in the page. */
     public static String applyPlayback(double position, boolean playing, double rate, boolean seek) {
         return GENERIC_MPH + "try{var m=window.mph;m.setRate(" + rate + ");"
