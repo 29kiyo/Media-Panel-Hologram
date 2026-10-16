@@ -1,5 +1,6 @@
 # Media Panel & Hologram
 
+[![Modrinth Downloads](https://img.shields.io/modrinth/dt/media-panel-hologram?style=for-the-badge&logo=modrinth&label=Modrinth)](https://modrinth.com/mod/media-panel-hologram) [![CurseForge Downloads](https://img.shields.io/curseforge/dt/1748276?style=for-the-badge&logo=curseforge&label=CurseForge)](https://www.curseforge.com/minecraft/mc-mods/media-panel-hologram) [![GitHub Issues](https://img.shields.io/github/issues/29kiyo/Media-Panel-Hologram?style=for-the-badge&logo=github&label=Issues)](https://github.com/29kiyo/Media-Panel-Hologram/issues)
 [日本語](README_ja.md)
 
 Thin panel blocks and holograms that display images, videos, music and web pages inside Minecraft.
