@@ -13,7 +13,7 @@
     "issues": "https://github.com/29kiyo/Media-Panel-Hologram/issues"
   },
   "license": "LGPL-2.1-or-later",
-  "icon": "assets/mediapanelhologram/icon.png",
+  "icon": "icon.png",
   "environment": "*",
   "entrypoints": {
     "main": [

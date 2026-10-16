@@ -41,6 +41,10 @@
   "gui.mediapanelhologram.hologram.pitch": "Tilt",
   "gui.mediapanelhologram.hologram.opacity": "Opacity",
   "item.mediapanelhologram.remote": "Remote Control",
+  "tooltip.mediapanelhologram.settings": "%s: Open settings",
+  "tooltip.mediapanelhologram.control": "%s: Open control screen (Video / Browser mode)",
+  "tooltip.mediapanelhologram.remote_connect": "%s a screen: Connect / disconnect",
+  "tooltip.mediapanelhologram.remote_open": "%s: Open remote screen",
   "message.mediapanelhologram.remote.added": "Connected: %s",
   "message.mediapanelhologram.remote.removed": "Disconnected: %s",
   "message.mediapanelhologram.remote.full": "This remote is full (max %s screens)",
@@ -77,5 +81,7 @@
   "gui.mediapanelhologram.share.blocked": "Not shared: looks like a sign-in page",
   "gui.mediapanelhologram.share.unavailable": "This page cannot be shared",
   "message.mediapanelhologram.input.busy": "%s is operating this screen",
-  "gui.mediapanelhologram.input.busy": "%s is operating this screen"
+  "gui.mediapanelhologram.input.busy": "%s is operating this screen",
+  "tooltip.mediapanelhologram.key.shift_rmb": "Shift + Right-click",
+  "tooltip.mediapanelhologram.key.rmb": "Right-click"
 }
