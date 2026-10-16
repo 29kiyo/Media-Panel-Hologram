@@ -1,33 +1,36 @@
 # Media Panel & Hologram
 
-薄いパネルブロックとホログラムで、画像・動画・音楽・Webページを Minecraft 内に表示する MOD。
+[日本語](README_ja.md)
+
+Thin panel blocks and holograms that display images, videos, music and web pages inside Minecraft.
 
 - Mod ID: `mediapanelhologram`
-- 対応ローダー: Fabric / NeoForge (Architectury)
-- 対応 Minecraft: 26.2 以降
-- 必須: Java 25、[GeckoLib](https://geckolib.com/)、[Architectury API](https://modrinth.com/mod/architectury-api)(Fabric は Fabric API も必須)
-- ライセンス: LGPL-2.1-or-later
+- Loaders: Fabric / NeoForge (built with Architectury)
+- Minecraft: 26.2 or later
+- Requires: Java 25, [GeckoLib](https://geckolib.com/), [Architectury API](https://modrinth.com/mod/architectury-api) (Fabric also requires Fabric API)
+- License: LGPL-2.1-or-later
 
-## 機能
-- **Media Panel**: 薄い板状ブロック。隣接する同じ向きのパネルは長方形に合体して1つの大画面になる
-- **Media Block**: 画像 / 動画 / 音楽 / ブラウザの4モード。ブロックを収納してカモフラージュできる
-- **Hologram Block / ホログラム**: 位置・大きさ・傾き・透過度を設定して空中に表示
-- **リモコン**: 複数のブロックを接続してまとめて操作
-- ブロック単体でのブラウザ操作、再生同期(複数プレイヤーで同じ位置を再生)、リピート、ロックと許可プレイヤー、表示範囲の設定
+## Features
+- **Media Panel**: a thin plate block. Adjacent panels facing the same way merge into one large rectangular screen.
+- **Media Block**: four modes (Image / Video / Music / Browser). Can hold another block to camouflage itself.
+- **Hologram Block**: shows the content floating in the air, with adjustable position, size, tilt and opacity.
+- **Remote Control**: connect several screens and control them together.
+- Direct browser control from the block, synchronized playback between players, repeat, lock with allowed players, and a configurable display range.
 
-## 初回起動時の注意
-- ブラウザエンジン(Chromium Embedded Framework)を、初回起動時に `mcef-download.cinemamod.com` から**自動ダウンロード**します(約124MB、展開後 約270MB)。ネットワーク接続が必要で、このサーバーに依存します。
-- 任意のURLを開けるため、ブラウザのセキュリティ設定(同一オリジンポリシー)を緩めています。信頼できないURLを開くときは注意してください。
-- 公式サイトの利用規約に従って使ってください。YouTube等の広告をMODは制御しません。Spotify はDRMのため再生できません。
+## Notes
+- On first launch the mod **automatically downloads** the browser engine (Chromium Embedded Framework, about 124 MB, about 270 MB unpacked) from `mcef-download.cinemamod.com`. A network connection is required and the mod depends on that server.
+- Because any URL can be opened, the browser's same-origin policy (web security) is disabled. Be careful when opening untrusted URLs.
+- Please follow the terms of each site you use. The mod does not control advertisements on sites such as YouTube. Spotify cannot be played (DRM).
 
-## ビルド
-JDK 25 が必要です。
+## Build
+Requires JDK 25.
 
     ./gradlew build
 
-成果物は `fabric/build/libs/` と `neoforge/build/libs/` の `mediapanelhologram-<loader>-<version>.jar` です。
+Jars are written to `fabric/build/libs/` and `neoforge/build/libs/` as `mediapanelhologram-<loader>-<version>.jar`.
 
-## サードパーティ
-- MCEF(CinemaMod版のフォーク、LGPL-2.1-or-later)と java-cef(BSD-3-Clause)
-- hls.js 1.7.3(Apache-2.0)
-詳細は `THIRD_PARTY_NOTICES.md` と `mcef-fork/UPSTREAM.md` を参照してください。
+## Third-party
+- MCEF (fork of the CinemaMod version, LGPL-2.1-or-later) and java-cef (BSD-3-Clause)
+- hls.js 1.7.3 (Apache-2.0)
+
+See `THIRD_PARTY_NOTICES.md` and `mcef-fork/UPSTREAM.md` for details.
