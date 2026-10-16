@@ -58,6 +58,7 @@ public final class RemoteService {
                 case VOLUME_BY -> MediaVolumeService.apply(level, t.pos(),
                         MediaVolumeService.VolumeOp.VOLUME_BY, Math.max(-100, Math.min(100, p.arg())));
                 case TOGGLE_MUTE -> MediaVolumeService.apply(level, t.pos(), MediaVolumeService.VolumeOp.TOGGLE_MUTE, 0);
+                case TOGGLE_REPEAT -> MediaRepeatService.set(level, t.pos(), p.arg() != 0);
                 case NEXT_QUALITY -> nextQuality(level, t.pos(), src);
                 default -> {
                     if (!PlaybackService.command(level, t.pos(), p.cmd(), p.arg()) && p.cmd().js(p.arg()) != null) {

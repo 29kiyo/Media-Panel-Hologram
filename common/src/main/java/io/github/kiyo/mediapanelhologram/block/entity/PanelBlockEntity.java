@@ -54,6 +54,7 @@ public class PanelBlockEntity extends BlockEntity implements ExtendedMenuProvide
     private QualityPreset quality = QualityPreset.DEFAULT;
     private int volume = -1;
     private boolean muted = false;
+    private boolean repeat = false;
     // True once settings were saved by a player (or copied from such a panel).
     // An empty URL in Browser mode is valid, so URL emptiness can't tell.
     private boolean configured = false;
@@ -201,6 +202,17 @@ public class PanelBlockEntity extends BlockEntity implements ExtendedMenuProvide
     }
 
     @Override
+    public boolean isRepeat() {
+        return repeat;
+    }
+
+    @Override
+    public void setRepeat(boolean repeat) {
+        this.repeat = repeat;
+        this.setChanged();
+    }
+
+    @Override
     public void setQuality(QualityPreset quality) {
         this.quality = quality;
         this.setChanged();
@@ -248,6 +260,7 @@ public class PanelBlockEntity extends BlockEntity implements ExtendedMenuProvide
         output.putInt("Volume", volume);
         output.putInt("Range", range);
         output.putBoolean("Muted", muted);
+        output.putBoolean("Repeat", repeat);
         output.putBoolean("Configured", configured);
         output.putBoolean("GroupOff", groupOff);
         output.putBoolean("InvalidShape", invalidShape);
@@ -274,6 +287,7 @@ public class PanelBlockEntity extends BlockEntity implements ExtendedMenuProvide
         volume = input.getIntOr("Volume", -1);
         range = io.github.kiyo.mediapanelhologram.block.MediaRange.clamp(input.getIntOr("Range", io.github.kiyo.mediapanelhologram.block.MediaRange.DEFAULT));
         muted = input.getBooleanOr("Muted", false);
+        repeat = input.getBooleanOr("Repeat", false);
         configured = input.getBooleanOr("Configured", !url.isEmpty());
         groupOff = input.getBooleanOr("GroupOff", false);
         invalidShape = input.getBooleanOr("InvalidShape", false);

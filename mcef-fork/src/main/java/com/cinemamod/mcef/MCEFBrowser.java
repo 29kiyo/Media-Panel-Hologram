@@ -560,11 +560,19 @@ public class MCEFBrowser extends CefBrowserOsr {
         if (closed) {
             return;
         }
+        // Not upstream: with no screen open the page must not touch the GLFW cursor mode
+        // (it freed the cursor and froze the view while just looking at a looping video).
+        if (Minecraft.getInstance().gui.screen() == null) {
+            return;
+        }
         if (cursorType == CefCursorType.NONE) {
             GLFW.glfwSetInputMode(Minecraft.getInstance().getWindow().handle(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
         } else {
             GLFW.glfwSetInputMode(Minecraft.getInstance().getWindow().handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            GLFW.glfwSetCursor(Minecraft.getInstance().getWindow().handle(), MCEF.getGLFWCursorHandle(cursorType));
+            long ch = MCEF.getGLFWCursorHandle(cursorType);
+            if (ch != 0L) {
+                GLFW.glfwSetCursor(Minecraft.getInstance().getWindow().handle(), ch);
+            }
         }
     }
 }

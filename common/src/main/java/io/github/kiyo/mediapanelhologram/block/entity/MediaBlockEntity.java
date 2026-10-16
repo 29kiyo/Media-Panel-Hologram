@@ -61,6 +61,7 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
     private io.github.kiyo.mediapanelhologram.block.HologramSettings hologram = io.github.kiyo.mediapanelhologram.block.HologramSettings.DEFAULT;
     private int volume = -1;
     private boolean muted = false;
+    private boolean repeat = false;
 
     public MediaBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.MEDIA_BLOCK.get(), pos, state);
@@ -164,6 +165,7 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
         output.putInt("Volume", volume);
         output.putInt("Range", range);
         output.putBoolean("Muted", muted);
+        output.putBoolean("Repeat", repeat);
         hologram.save(output);
         lock.save(output);
     }
@@ -182,6 +184,7 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
         volume = input.getIntOr("Volume", -1);
         range = io.github.kiyo.mediapanelhologram.block.MediaRange.clamp(input.getIntOr("Range", io.github.kiyo.mediapanelhologram.block.MediaRange.DEFAULT));
         muted = input.getBooleanOr("Muted", false);
+        repeat = input.getBooleanOr("Repeat", false);
         lock = io.github.kiyo.mediapanelhologram.block.LockData.load(input);
     }
 
@@ -225,6 +228,17 @@ public class MediaBlockEntity extends BlockEntity implements ExtendedMenuProvide
     public void setVolumeState(int volume, boolean muted) {
         this.volume = volume;
         this.muted = muted;
+        this.setChanged();
+    }
+
+    @Override
+    public boolean isRepeat() {
+        return repeat;
+    }
+
+    @Override
+    public void setRepeat(boolean repeat) {
+        this.repeat = repeat;
         this.setChanged();
     }
 

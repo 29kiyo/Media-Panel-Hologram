@@ -49,3 +49,5 @@ Local modifications (not in upstream; each was a fix for a bug reproduced only i
 
 - MemoryPageScheme: /player and /file pages gained window.mph.state() (position/playing/rate/duration), read by the
   MPH-POS console reporter (MphScripts.REPORTER).
+
+- MCEFBrowser#setCursor: no-op while no screen is open (gui.screen()==null); glfwSetCursor skipped for a 0 cursor handle (looping video freed the cursor while just looking at it).

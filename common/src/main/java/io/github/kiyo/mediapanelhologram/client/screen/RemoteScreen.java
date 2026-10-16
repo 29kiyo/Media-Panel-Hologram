@@ -103,6 +103,34 @@ public class RemoteScreen extends Screen {
         addOpenButtons();
     }
 
+    private Button repeatButton;
+
+    /** Repeat state of the screens a command would reach (checked + highlighted): 1 all on, 0 all off, 2 mixed/unknown. */
+    private int repeatState() {
+        RemoteData d = data();
+        int hi = highlightedIndex(d);
+        var level = Minecraft.getInstance().level;
+        if (level == null) {
+            return 0;
+        }
+        int on = 0;
+        int off = 0;
+        for (int i = 0; i < d.targets().size(); i++) {
+            RemoteTarget t = d.targets().get(i);
+            if (!(t.selected() || i == hi) || !level.dimension().equals(t.dimension())) {
+                continue;
+            }
+            if (level.getBlockEntity(t.pos()) instanceof io.github.kiyo.mediapanelhologram.block.entity.MediaSource s) {
+                if (s.isRepeat()) {
+                    on++;
+                } else {
+                    off++;
+                }
+            }
+        }
+        return on > 0 && off > 0 ? 2 : (on > 0 ? 1 : 0);
+    }
+
     private Button settingsButton;
     private Button browserButton;
 
@@ -164,7 +192,12 @@ public class RemoteScreen extends Screen {
 
     private void addControls() {
         ctl(0, 0, "Play", io.github.kiyo.mediapanelhologram.network.RemoteCommand.PLAY_TOGGLE, 0);
-        ctl(1, 0, "Repeat", io.github.kiyo.mediapanelhologram.network.RemoteCommand.TOGGLE_REPEAT, 0);
+        repeatButton = addOwnWidget(Button.builder(Component.literal("Repeat"), b -> {
+                    int s = repeatState();
+                    sendCommand(io.github.kiyo.mediapanelhologram.network.RemoteCommand.TOGGLE_REPEAT, s == 1 ? 0 : 1);
+                })
+                .bounds(left + CTRL_X + 54, top + LIST_TOP, 52, 18)
+                .build());
         ctl(0, 1, "-30", io.github.kiyo.mediapanelhologram.network.RemoteCommand.SEEK_BY, -30);
         ctl(1, 1, "+30", io.github.kiyo.mediapanelhologram.network.RemoteCommand.SEEK_BY, 30);
         ctl(0, 2, "-10", io.github.kiyo.mediapanelhologram.network.RemoteCommand.SEEK_BY, -10);
@@ -367,6 +400,10 @@ public class RemoteScreen extends Screen {
                     draggingBar ? 0xFFB8FFF0 : 0xFF4FD1C5);
         }
 
+        int rs = repeatState();
+        repeatButton.setMessage(rs == 2 ? Component.translatable("gui.mediapanelhologram.remote.repeat_mixed")
+                : Component.translatable("gui.mediapanelhologram.media_block.repeat",
+                        Component.translatable(rs == 1 ? "gui.mediapanelhologram.hologram.on" : "gui.mediapanelhologram.hologram.off")));
         var hs = highlightedSource();
         settingsButton.active = hs != null;
         browserButton.active = hs != null

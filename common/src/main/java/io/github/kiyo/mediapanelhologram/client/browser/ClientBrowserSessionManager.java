@@ -412,6 +412,7 @@ public final class ClientBrowserSessionManager {
                     if (!isLoading) {
                         Minecraft.getInstance().execute(() -> {
                             reapplyVolume(pos, entry);
+                            reapplyRepeat(pos, entry);
                             if (SESSIONS.get(pos) == entry) {
                                 entry.session.executeJavaScript(MphScripts.REPORTER + MphScripts.PWD_WATCH);
                             }
@@ -844,6 +845,29 @@ public final class ClientBrowserSessionManager {
         Entry entry = SESSIONS.get(key);
         if (entry != null) {
             entry.session.executeJavaScript(MphScripts.applyVolume(volume < 0 ? -1.0 : volume / 100.0, muted));
+        }
+    }
+
+    /** Re-applies the saved repeat flag to a freshly loaded page (only when ON; OFF is the page default). */
+    private static void reapplyRepeat(BlockPos pos, Entry entry) {
+        if (SESSIONS.get(pos) != entry) {
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null && mc.level.getBlockEntity(pos) instanceof MediaSource be && be.isRepeat()) {
+            entry.session.executeJavaScript(MphScripts.applyRepeat(true));
+        }
+    }
+
+    /** Server told us the repeat flag changed: update the local block entity and, if a session exists, the page. */
+    public static void applyRepeatState(BlockPos key, boolean repeat) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level != null && mc.level.getBlockEntity(key) instanceof MediaSource be) {
+            be.setRepeat(repeat);
+        }
+        Entry entry = SESSIONS.get(key);
+        if (entry != null) {
+            entry.session.executeJavaScript(MphScripts.applyRepeat(repeat));
         }
     }
 

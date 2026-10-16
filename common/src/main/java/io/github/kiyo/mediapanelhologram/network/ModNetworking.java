@@ -106,6 +106,14 @@ public final class ModNetworking {
                 InputRelayEventPayload.TYPE,
                 InputRelayEventPayload.STREAM_CODEC,
                 ModNetworking::handleInputRelayEvent);
+        NetworkManager.registerC2S(
+                RepeatCommandPayload.TYPE,
+                RepeatCommandPayload.STREAM_CODEC,
+                ModNetworking::handleRepeatCommand);
+        NetworkManager.registerS2C(
+                RepeatSyncPayload.TYPE,
+                RepeatSyncPayload.STREAM_CODEC,
+                ModNetworking::handleRepeatSync);
     }
 
     private static void handleRangeUpdate(RangeUpdatePayload payload, NetworkManager.PacketContext context) {
@@ -275,6 +283,30 @@ public final class ModNetworking {
     private static void handleVolumeSync(MediaVolumeSyncPayload payload, NetworkManager.PacketContext context) {
         context.queue(() -> io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager
                 .applyVolumeState(payload.pos(), payload.volume(), payload.muted()));
+    }
+
+    private static void handleRepeatCommand(RepeatCommandPayload payload, NetworkManager.PacketContext context) {
+        context.queue(() -> {
+            Player player = context.getPlayer();
+            Level level = player.level();
+            net.minecraft.core.BlockPos pos = payload.pos();
+            if (!(level.getBlockEntity(pos) instanceof MediaSource)) {
+                return;
+            }
+            if (!RemoteAccess.canReach(player, pos)) {
+                return;
+            }
+            if (!LockAccess.canOperate(player, level, pos)) {
+                player.sendOverlayMessage(net.minecraft.network.chat.Component.translatable("message.mediapanelhologram.lock.denied"));
+                return;
+            }
+            MediaRepeatService.toggle(level, pos);
+        });
+    }
+
+    private static void handleRepeatSync(RepeatSyncPayload payload, NetworkManager.PacketContext context) {
+        context.queue(() -> io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager
+                .applyRepeatState(payload.pos(), payload.repeat()));
     }
 
     private static void handleRemoteOpen(RemoteOpenPayload payload, NetworkManager.PacketContext context) {

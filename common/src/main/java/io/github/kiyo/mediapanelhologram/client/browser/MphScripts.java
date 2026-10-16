@@ -39,7 +39,11 @@ public final class MphScripts {
               seekBy:w(function(v,x){v.currentTime=Math.max(0,v.currentTime+x);}),
               volumeBy:w(function(v,x){v.volume=Math.max(0,Math.min(1,v.volume+x));}),
               toggleMute:w(function(v){if(!v.muted){window.__mphVol=v.volume;v.muted=true;}else{v.muted=false;if(v.volume===0){v.volume=(window.__mphVol>0)?window.__mphVol:0.5;}}}),
-              toggleRepeat:w(function(v){v.loop=!v.loop;}),
+              setRepeat:function(x){window.__mphRepWant=!!x;
+                if(!window.__mphRepHook){window.__mphRepHook=true;
+                  document.addEventListener('play',function(e){var t=e.target;
+                    if(t&&('loop' in t)){t.loop=!!window.__mphRepWant&&!document.querySelector('.ad-showing');}},true);setInterval(function(){var q=vid();if(q){q.loop=!!window.__mphRepWant&&!document.querySelector('.ad-showing');}},500);}
+                var v=vid();if(v){v.loop=!!x&&!document.querySelector('.ad-showing');}},
               state:function(){var v=vid();return v?{p:v.currentTime,pl:!v.paused&&!v.ended,r:v.playbackRate,d:isFinite(v.duration)?v.duration:-1}:null;},
               next:function(){var b=document.querySelector('.ytp-next-button');if(b){b.click();}}
             };})();}
@@ -69,8 +73,8 @@ public final class MphScripts {
      * Safe to run on every page load: the timer is created once per document.
      */
     public static final String REPORTER = GENERIC_MPH + """
-            (function(){if(window.__mphRep){return;}
-            window.__mphRep=setInterval(function(){try{var m=window.mph;var s=m&&m.state&&m.state();
+            (function(){if(window.__mphRepTimer){return;}
+            window.__mphRepTimer=setInterval(function(){try{var m=window.mph;var s=m&&m.state&&m.state();
             if(s){console.log('MPH-POS '+Number(s.p).toFixed(2)+' '+(s.pl?1:0)+' '+s.r+' '+s.d);}}catch(e){}},1000);})();
             """;
 
@@ -116,6 +120,16 @@ public final class MphScripts {
         return GENERIC_MPH + "try{var m=window.mph;m.setRate(" + rate + ");"
                 + (seek ? "m.seek(" + position + ");" : "")
                 + "m." + (playing ? "play" : "pause") + "();}catch(e){}";
+    }
+
+    /**
+     * Applies the persisted repeat flag. Stores it in window.__mphRepWant and retries at 1s and 3s;
+     * the timers read the LATEST value, so an older timer never overwrites a newer command.
+     */
+    public static String applyRepeat(boolean repeat) {
+        return "window.__mphRepWant=" + repeat + ";" + GENERIC_MPH
+                + "(function(){function a(){try{window.mph.setRepeat(window.__mphRepWant);}catch(e){}}"
+                + "a();setTimeout(a,1000);setTimeout(a,3000);})();";
     }
 
     private MphScripts() {

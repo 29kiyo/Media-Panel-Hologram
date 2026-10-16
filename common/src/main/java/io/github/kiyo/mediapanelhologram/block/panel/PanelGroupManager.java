@@ -199,7 +199,7 @@ public final class PanelGroupManager {
         if (from.isConfigured() == to.isConfigured() && from.getScreenUpRef() == to.getScreenUpRef() && from.getUrl().equals(to.getUrl()) && from.getMode() == to.getMode()
                 && from.getQuality() == to.getQuality() && from.getVolume() == to.getVolume()
                 && from.isMuted() == to.isMuted() && from.getLock().equals(to.getLock())
-                && from.getRange() == to.getRange()) {
+                && from.getRange() == to.getRange() && from.isRepeat() == to.isRepeat()) {
             return;
         }
         to.setUrlAndMode(from.getUrl(), from.getMode());
@@ -208,6 +208,7 @@ public final class PanelGroupManager {
         to.setConfigured(from.isConfigured());
         to.setLock(from.getLock());
         to.setRange(from.getRange());
+        to.setRepeat(from.isRepeat());
         to.setScreenUpRef(from.getScreenUpRef());
         BlockState s = level.getBlockState(to.getBlockPos());
         level.sendBlockUpdated(to.getBlockPos(), s, s, net.minecraft.world.level.block.Block.UPDATE_CLIENTS);

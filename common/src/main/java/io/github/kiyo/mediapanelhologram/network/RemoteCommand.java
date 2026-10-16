@@ -28,7 +28,6 @@ public enum RemoteCommand {
             case PLAY_TOGGLE -> "toggle()";
             case SEEK_BY -> "seekBy(" + Math.max(-600, Math.min(600, arg)) + ")";
             case SET_RATE -> "setRate(" + Double.toString(Math.max(25, Math.min(400, arg)) / 100.0) + ")";
-            case TOGGLE_REPEAT -> "toggleRepeat()";
             case TOGGLE_CAPTIONS -> "toggleCaptions()";
             case PREV -> "prev()";
             case NEXT -> "next()";

@@ -209,8 +209,12 @@ public final class MediaBrowserScreen extends Screen {
                 io.github.kiyo.mediapanelhologram.network.MediaVolumeService.VolumeOp.TOGGLE_MUTE, 0));
         addMediaButton("Speed", 240, 46, () -> playback(io.github.kiyo.mediapanelhologram.network.RemoteCommand.SET_RATE, (int) Math.round(nextDevRate() * 100)));
         addMediaButton("CC", 288, 30, () -> mph("toggleCaptions()"));
+        repeatButton = Button.builder(Component.literal("Repeat"), b -> sendRepeat())
+                .bounds(322, ADDRESS_BAR_HEIGHT + NAV_ROW_HEIGHT + 4, 62, 16)
+                .build();
+        addOwnWidget(repeatButton);
         // Playlist buttons are grouped at the right edge (total width 130).
-        int plX = Math.max(322, this.width - 8 - 130);
+        int plX = Math.max(388, this.width - 8 - 130);
         addMediaButton("|<", plX, 24, () -> mph("prev()"));
         addMediaButton(">|", plX + 26, 24, () -> mph("next()"));
         addMediaButton("Shuf", plX + 52, 34, () -> mph("toggleShuffle()"));
@@ -361,6 +365,28 @@ public final class MediaBrowserScreen extends Screen {
         say("gui.mediapanelhologram.share.done");
     }
 
+    private Button repeatButton;
+
+    /** Repeat goes through the server (saved flag, every viewer follows, lock applies). */
+    private void sendRepeat() {
+        dev.architectury.networking.NetworkManager.sendToServer(
+                new io.github.kiyo.mediapanelhologram.network.RepeatCommandPayload(pos));
+    }
+
+    private void updateRepeatLabel() {
+        if (repeatButton == null) {
+            return;
+        }
+        MediaSource src = findBlockEntity();
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        if (src != null && mc.level != null && mc.level.getBlockEntity(src.getSessionKey()) instanceof MediaSource rep) {
+            src = rep; // a panel group keeps the state on its representative
+        }
+        boolean on = src != null && src.isRepeat();
+        repeatButton.setMessage(Component.translatable("gui.mediapanelhologram.media_block.repeat",
+                Component.translatable(on ? "gui.mediapanelhologram.hologram.on" : "gui.mediapanelhologram.hologram.off")));
+    }
+
     private void adjustVolume(double delta) {
         sendVolume(io.github.kiyo.mediapanelhologram.network.MediaVolumeService.VolumeOp.VOLUME_BY,
                 (int) Math.round(delta * 100));
@@ -476,6 +502,7 @@ public final class MediaBrowserScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g0, int m0, int m1, float p0) {
+        updateRepeatLabel();
         extractRenderStateBase(g0, m0, m1, p0);
         drawPreedit(g0);
         drawShareMessage(g0);

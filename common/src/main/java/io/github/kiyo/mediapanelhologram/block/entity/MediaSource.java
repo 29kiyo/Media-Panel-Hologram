@@ -29,6 +29,11 @@ public interface MediaSource {
 
     void setVolumeState(int volume, boolean muted);
 
+    /** Persisted repeat flag (changed through the server). */
+    boolean isRepeat();
+
+    void setRepeat(boolean repeat);
+
     /** Lock state (owner + allowed players). LockData.NONE = unlocked. */
     io.github.kiyo.mediapanelhologram.block.LockData getLock();
 
