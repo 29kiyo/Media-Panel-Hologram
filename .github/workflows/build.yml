@@ -1,0 +1,59 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+      prerelease:
+        description: 'Mark as pre-release'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate tag
+        run: |
+          if ! echo "${{ inputs.tag }}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$'; then
+            echo "Tag must look like v1.0.0"; exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/${{ inputs.tag }}" >/dev/null 2>&1; then
+            echo "Tag already exists"; exit 1
+          fi
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+      - name: Build
+        run: |
+          VERSION="${{ inputs.tag }}"
+          ./gradlew build -Pmod_version="${VERSION#v}"
+      - name: Collect jars
+        run: |
+          mkdir dist
+          cp fabric/build/libs/mediapanelhologram-fabric-*.jar dist/
+          cp neoforge/build/libs/mediapanelhologram-neoforge-*.jar dist/
+          rm -f dist/*-sources.jar dist/*-dev.jar
+          cd dist && sha256sum *.jar > SHA256SUMS
+          ls -l
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FLAGS=""
+          if [ "${{ inputs.prerelease }}" = "true" ]; then FLAGS="--prerelease"; fi
+          printf '%s\n' \
+            'Requires: Minecraft 26.2+, Java 25, GeckoLib, Architectury API (Fabric also needs Fabric API).' \
+            'The browser engine (CEF, ~124 MB) is downloaded on first launch.' > notes.md
+          gh release create "${{ inputs.tag }}" dist/* --target "${{ github.sha }}" \
+            --title "${{ inputs.tag }}" --notes-file notes.md --generate-notes $FLAGS
