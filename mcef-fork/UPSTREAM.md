@@ -56,7 +56,7 @@ Local modifications (not in upstream; each was a fix for a bug reproduced only i
 - `MCEFRenderer#usesGl()` and `MCEFRenderer#onPaintRegion(...)`: when the browser texture is not a `GlTexture` (Vulkan backend), the dirty region is copied into a tightly packed staging buffer with B/R swapped (CEF delivers BGRA, `RGBA8_UNORM` expects RGBA) and uploaded via `CommandEncoder#writeToTexture`. The staging buffer is freed in `cleanup()`.
 - `MCEFRenderer#onPaintFull0`: non-GL branch calls `onPaintRegion` for full-frame uploads.
 - `MCEFBrowser#onPaint` / `#paintNonGl`: partial updates take the non-GL path when `!renderer.usesGl()`.
-- Limitation: popups (e.g. `<select>` dropdowns) are not drawn on the Vulkan path yet. The OpenGL path is unchanged.
+- `MCEFBrowser#paintPopupNonGl` / `#paintNonGl`: popups (e.g. `<select>` dropdowns) are drawn onto the texture at `popupSize.x/y`, a copy is kept in `popupGraphics` and redrawn after each main-view update, and the view's own pixels are restored when the popup closes (`popupRestorePending`). Only verified on Vulkan in the dev environment so far. The OpenGL path is unchanged (note: its close-restore uses `SKIP_PIXELS = popupSize.width`, which looks like an upstream quirk; left as is).
 - Tried and reverted: a per-browser `CefRequestContext` (separate zoom/cookies). `https://mph.local/` is registered globally via `CefApp#registerSchemeHandlerFactory` and is not inherited by new contexts (ERR_NAME_NOT_RESOLVED), and the fork's Java API has no per-context registration.
 
 - MCEFBrowser#sendKeyPress / #sendMouseWheel: Ctrl+=/-/0 and Ctrl+wheel no longer change CEF zoom. Page zoom is CSS `zoom` applied per session by ClientBrowserSessionManager, because CEF zoom is remembered per host and was shared between screens.

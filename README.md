@@ -35,3 +35,10 @@ Jars are written to `fabric/build/libs/` and `neoforge/build/libs/` as `mediapan
 - hls.js 1.7.3 (Apache-2.0)
 
 See `THIRD_PARTY_NOTICES.md` and `mcef-fork/UPSTREAM.md` for details.
+
+## Known limitations
+
+- Page zoom is per screen (CSS zoom); Ctrl+/-/0 and Ctrl+wheel are disabled in the embedded browser.
+- Cookies and logins are shared between all screens (one browser profile).
+- On the Vulkan graphics backend, browser frames and `<select>` popups are uploaded through a separate path; OpenGL is the more tested backend.
+- Screens may look jagged when viewed from far away or heavily downscaled (no mipmaps on the browser texture).
