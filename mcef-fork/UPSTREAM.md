@@ -51,3 +51,10 @@ Local modifications (not in upstream; each was a fix for a bug reproduced only i
   MPH-POS console reporter (MphScripts.REPORTER).
 
 - MCEFBrowser#setCursor: no-op while no screen is open (gui.screen()==null); glfwSetCursor skipped for a 0 cursor handle (looping video freed the cursor while just looking at it).
+
+## Vulkan texture upload path (not upstream)
+- `MCEFRenderer#usesGl()` and `MCEFRenderer#onPaintRegion(...)`: when the browser texture is not a `GlTexture` (Vulkan backend), the dirty region is copied into a tightly packed staging buffer with B/R swapped (CEF delivers BGRA, `RGBA8_UNORM` expects RGBA) and uploaded via `CommandEncoder#writeToTexture`. The staging buffer is freed in `cleanup()`.
+- `MCEFRenderer#onPaintFull0`: non-GL branch calls `onPaintRegion` for full-frame uploads.
+- `MCEFBrowser#onPaint` / `#paintNonGl`: partial updates take the non-GL path when `!renderer.usesGl()`.
+- Limitation: popups (e.g. `<select>` dropdowns) are not drawn on the Vulkan path yet. The OpenGL path is unchanged.
+- Tried and reverted: a per-browser `CefRequestContext` (separate zoom/cookies). `https://mph.local/` is registered globally via `CefApp#registerSchemeHandlerFactory` and is not inherited by new contexts (ERR_NAME_NOT_RESOLVED), and the fork's Java API has no per-context registration.
