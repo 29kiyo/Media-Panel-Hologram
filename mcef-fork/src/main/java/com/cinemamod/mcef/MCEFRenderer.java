@@ -31,6 +31,8 @@ import net.minecraft.resources.Identifier;
 import java.nio.ByteBuffer;
 import java.util.UUID;
 
+import org.lwjgl.system.MemoryUtil;
+
 import static org.lwjgl.opengl.GL12.*;
 
 public class MCEFRenderer {
@@ -120,6 +122,10 @@ public class MCEFRenderer {
         if (texture != null) {
             texture.close();
             texture = null;
+        }
+        if (packedBuf != null) {
+            MemoryUtil.memFree(packedBuf);
+            packedBuf = null;
         }
     }
 
@@ -213,7 +219,70 @@ public class MCEFRenderer {
 
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0,
                     GL_BGRA, GL_UNSIGNED_INT_8_8_8_8_REV, buffer);
+        } else if (texture != null) {
+            // Non-OpenGL backend (Vulkan): see onPaintRegion.
+            onPaintRegion(buffer, width, 0, 0, 0, 0, width, height);
         }
+    }
+
+    /** True when the browser texture is an OpenGL texture (the original upload path applies). */
+    public boolean usesGl() {
+        return texture instanceof GlTexture;
+    }
+
+    // Reused staging buffer for the non-GL path (RGBA, tightly packed). Freed in cleanup().
+    private ByteBuffer packedBuf;
+
+    /**
+     * Non-OpenGL (Vulkan) upload. CommandEncoder#writeToTexture has no row-stride/skip
+     * parameters and expects RGBA byte order, while CEF delivers BGRA with the full-frame
+     * row length. So the region is copied into a tightly packed buffer with R/B swapped.
+     * src must be a direct buffer whose rows are srcWidth pixels wide.
+     */
+    public void onPaintRegion(ByteBuffer src, int srcWidth, int srcX, int srcY,
+                              int dstX, int dstY, int w, int h) {
+        if (texture == null || src == null) {
+            return;
+        }
+        // Clamp to the texture bounds.
+        if (dstX < 0 || dstY < 0 || dstX + w > textureWidth || dstY + h > textureHeight || w <= 0 || h <= 0) {
+            int cx = Math.max(dstX, 0), cy = Math.max(dstY, 0);
+            int cw = Math.min(dstX + w, textureWidth) - cx;
+            int ch = Math.min(dstY + h, textureHeight) - cy;
+            srcX += cx - dstX;
+            srcY += cy - dstY;
+            dstX = cx;
+            dstY = cy;
+            w = cw;
+            h = ch;
+            if (w <= 0 || h <= 0) {
+                return;
+            }
+        }
+        int bytes = w * h * 4;
+        if (packedBuf == null || packedBuf.capacity() < bytes) {
+            if (packedBuf != null) {
+                MemoryUtil.memFree(packedBuf);
+            }
+            packedBuf = MemoryUtil.memAlloc(bytes);
+        }
+        long srcBase = MemoryUtil.memAddress(src);
+        long dst = MemoryUtil.memAddress0(packedBuf);
+        for (int row = 0; row < h; row++) {
+            long s = srcBase + ((long) (srcY + row) * srcWidth + srcX) * 4L;
+            for (int col = 0; col < w; col++) {
+                int v = MemoryUtil.memGetInt(s);
+                // memory bytes B,G,R,A -> R,G,B,A (little-endian ints)
+                v = (v & 0xFF00FF00) | ((v & 0xFF) << 16) | ((v >>> 16) & 0xFF);
+                MemoryUtil.memPutInt(dst, v);
+                s += 4;
+                dst += 4;
+            }
+        }
+        packedBuf.position(0);
+        packedBuf.limit(bytes);
+        RenderSystem.getDevice().createCommandEncoder()
+                .writeToTexture(texture, packedBuf, 0, 0, dstX, dstY, w, h);
     }
 
     private void onPaintPart0(ByteBuffer buffer, int x, int y, int width, int height) {

@@ -265,6 +265,8 @@ public class MCEFBrowser extends CefBrowserOsr {
                 // upload full texture
                 // this also sets up the texture size and creates the texture
                 renderer.onPaint(buffer, width, height);
+            } else if (!renderer.usesGl()) {
+                paintNonGl(dirtyRects, buffer, width);
             } else {
                 if (PERF_ENTRY) {
                     perfBranch(renderer.getTextureID() == 0 ? 1 : 2, renderer.getTexture());
@@ -330,6 +332,13 @@ public class MCEFBrowser extends CefBrowserOsr {
             }
 
             popupDrawn = true;
+        }
+    }
+
+    /** Non-OpenGL (Vulkan) partial update; popups are not supported on this path yet. */
+    private void paintNonGl(Rectangle[] dirtyRects, ByteBuffer buffer, int width) {
+        for (Rectangle r : dirtyRects) {
+            renderer.onPaintRegion(buffer, width, r.x, r.y, r.x, r.y, r.width, r.height);
         }
     }
 
