@@ -100,6 +100,8 @@ public class MCEFBrowser extends CefBrowserOsr {
     protected Rectangle popupSize;
     protected boolean showPopup = false;
     protected boolean popupDrawn = false;
+    // Non-GL (Vulkan) path only: the popup was drawn onto the texture and must be erased once it is hidden.
+    private boolean popupRestorePending = false;
 
     public MCEFBrowser(MCEFClient client, String url, boolean transparent) {
         super(client.getHandle(), url, transparent, null);
@@ -298,6 +300,8 @@ public class MCEFBrowser extends CefBrowserOsr {
                     }
                 }
             }
+        } else if (!renderer.usesGl()) {
+            paintPopupNonGl(dirtyRects, buffer, width);
         } else {
             if (renderer.getTextureID() == 0) return;
             GlStateManager._bindTexture(renderer.getTextureID());
@@ -335,11 +339,50 @@ public class MCEFBrowser extends CefBrowserOsr {
         }
     }
 
-    /** Non-OpenGL (Vulkan) partial update; popups are not supported on this path yet. */
+    /** Non-OpenGL (Vulkan) partial update of the main view, keeping a visible popup on top. */
     private void paintNonGl(Rectangle[] dirtyRects, ByteBuffer buffer, int width) {
         for (Rectangle r : dirtyRects) {
             renderer.onPaintRegion(buffer, width, r.x, r.y, r.x, r.y, r.width, r.height);
         }
+        Rectangle ps = popupSize;
+        if (ps == null) {
+            return;
+        }
+        if (showPopup && popupDrawn && popupGraphics != null) {
+            // redraw the saved popup pixels over the freshly updated view
+            renderer.onPaintRegion(popupGraphics, ps.width, 0, 0, ps.x, ps.y, ps.width, ps.height);
+        } else if (!showPopup && popupRestorePending) {
+            // popup closed: put the view's own pixels back where it was
+            renderer.onPaintRegion(buffer, width, ps.x, ps.y, ps.x, ps.y, ps.width, ps.height);
+            popupRestorePending = false;
+            popupGraphics = null;
+            popupSize = null;
+        }
+    }
+
+    /** Non-OpenGL (Vulkan) popup paint: draw onto the texture and keep a copy for later redraws. */
+    private void paintPopupNonGl(Rectangle[] dirtyRects, ByteBuffer buffer, int width) {
+        Rectangle ps = popupSize;
+        if (ps == null) {
+            return;
+        }
+        ByteBuffer saved = popupGraphics;
+        for (Rectangle r : dirtyRects) {
+            renderer.onPaintRegion(buffer, width, r.x, r.y, ps.x + r.x, ps.y + r.y, r.width, r.height);
+            if (saved != null) {
+                long from = MemoryUtil.memAddress(buffer);
+                long to = MemoryUtil.memAddress(saved);
+                for (int row = 0; row < r.height; row++) {
+                    long off = ((long) (r.y + row) * width + r.x) * 4L;
+                    long len = (long) r.width * 4L;
+                    if (off + len <= saved.capacity() && off + len <= buffer.capacity()) {
+                        MemoryUtil.memCopy(from + off, to + off, len);
+                    }
+                }
+            }
+        }
+        popupDrawn = true;
+        popupRestorePending = true;
     }
 
     public void resize(int width, int height) {
