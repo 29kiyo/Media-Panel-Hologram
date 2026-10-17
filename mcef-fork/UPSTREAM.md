@@ -58,3 +58,5 @@ Local modifications (not in upstream; each was a fix for a bug reproduced only i
 - `MCEFBrowser#onPaint` / `#paintNonGl`: partial updates take the non-GL path when `!renderer.usesGl()`.
 - Limitation: popups (e.g. `<select>` dropdowns) are not drawn on the Vulkan path yet. The OpenGL path is unchanged.
 - Tried and reverted: a per-browser `CefRequestContext` (separate zoom/cookies). `https://mph.local/` is registered globally via `CefApp#registerSchemeHandlerFactory` and is not inherited by new contexts (ERR_NAME_NOT_RESOLVED), and the fork's Java API has no per-context registration.
+
+- MCEFBrowser#sendKeyPress / #sendMouseWheel: Ctrl+=/-/0 and Ctrl+wheel no longer change CEF zoom. Page zoom is CSS `zoom` applied per session by ClientBrowserSessionManager, because CEF zoom is remembered per host and was shared between screens.
