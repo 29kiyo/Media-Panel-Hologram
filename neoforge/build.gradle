@@ -59,6 +59,8 @@ jar {
 shadowJar {
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = null
+    // jar file name only: mod metadata keeps plain `version`
+    archiveVersion = "${project.version}-mc${rootProject.minecraft_version}"
 }
 
 assemble.dependsOn shadowJar
