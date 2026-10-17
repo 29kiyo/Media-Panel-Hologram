@@ -17,14 +17,14 @@ Thin panel blocks and holograms that display images, videos, music and web pages
 [[dependencies.mediapanelhologram]]
 modId = "neoforge"
 type = "required"
-versionRange = "[26.2.0,)"
+versionRange = "[26.2.0,26.3.0)"
 ordering = "NONE"
 side = "BOTH"
 
 [[dependencies.mediapanelhologram]]
 modId = "minecraft"
 type = "required"
-versionRange = "[26.2,)"
+versionRange = "[26.2,26.3)"
 ordering = "NONE"
 side = "BOTH"
 
