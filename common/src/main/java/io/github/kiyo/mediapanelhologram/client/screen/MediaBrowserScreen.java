@@ -401,14 +401,14 @@ public final class MediaBrowserScreen extends Screen {
     private void adjustZoom(double delta) {
         IBrowserSession session = currentSession();
         if (session != null) {
-            setZoom(session.getZoomLevel() + delta);
+            setZoom(io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.getZoom(session) + delta);
         }
     }
 
     private void setZoom(double level) {
         IBrowserSession session = currentSession();
         if (session != null) {
-            session.setZoomLevel(Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, level)));
+            io.github.kiyo.mediapanelhologram.client.browser.ClientBrowserSessionManager.setZoom(session, Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, level)));
         }
     }
 

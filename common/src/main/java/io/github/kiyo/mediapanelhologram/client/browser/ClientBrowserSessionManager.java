@@ -413,6 +413,7 @@ public final class ClientBrowserSessionManager {
                         Minecraft.getInstance().execute(() -> {
                             reapplyVolume(pos, entry);
                             reapplyRepeat(pos, entry);
+                            applyCssZoom(entry);
                             if (SESSIONS.get(pos) == entry) {
                                 entry.session.executeJavaScript(MphScripts.REPORTER + MphScripts.PWD_WATCH);
                             }
@@ -425,7 +426,7 @@ public final class ClientBrowserSessionManager {
                     Minecraft.getInstance().execute(() -> {
                         Entry current = SESSIONS.get(pos);
                         if (current != null && current.session == session) {
-                            session.setZoomLevel(quality.baseZoomLevel());
+                            session.setZoomLevel(0); // reset any saved per-host CEF zoom; zoom is CSS now
                         }
                     });
                 }
@@ -879,6 +880,34 @@ public final class ClientBrowserSessionManager {
         }
     }
 
+    // ---- Per-session page zoom (CSS zoom; CEF's own zoom is per-host and shared) ----
+    private static Entry entryOf(IBrowserSession session) {
+        for (Entry e : SESSIONS.values()) {
+            if (e.session == session) {
+                return e;
+            }
+        }
+        return null;
+    }
+
+    private static void applyCssZoom(Entry entry) {
+        entry.session.executeJavaScript("try{document.documentElement.style.zoom='"
+                + Math.pow(1.2, entry.zoom) + "';}catch(e){}");
+    }
+
+    public static double getZoom(IBrowserSession session) {
+        Entry e = entryOf(session);
+        return e != null ? e.zoom : 0.0;
+    }
+
+    public static void setZoom(IBrowserSession session, double level) {
+        Entry e = entryOf(session);
+        if (e != null) {
+            e.zoom = level;
+            applyCssZoom(e);
+        }
+    }
+
     private static final class Entry {
         final IBrowserSession session;
         String loadedUrl;
@@ -907,11 +936,13 @@ public final class ClientBrowserSessionManager {
         volatile boolean pwdFocused = true; // password-like field focused (or unknown): keys are not relayed/applied
         volatile long lastCmdAt;   // when this client last sent a playback command
         final io.github.kiyo.mediapanelhologram.block.QualityPreset quality;
+        volatile double zoom; // CSS zoom step (1.2^n), per session
 
         Entry(IBrowserSession session, String loadedUrl, io.github.kiyo.mediapanelhologram.block.QualityPreset quality) {
             this.session = session;
             this.loadedUrl = loadedUrl;
             this.quality = quality;
+            this.zoom = quality.baseZoomLevel();
         }
     }
 }

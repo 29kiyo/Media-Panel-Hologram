@@ -355,14 +355,11 @@ public class MCEFBrowser extends CefBrowserOsr {
                     reload();
                     return;
                 } else if (keyCode == GLFW_KEY_EQUAL) {
-                    if (getZoomLevel() < 9) setZoomLevel(getZoomLevel() + 1);
-                    return;
+                    return; // zoom is CSS-based per session (MPH)
                 } else if (keyCode == GLFW_KEY_MINUS) {
-                    if (getZoomLevel() > -9) setZoomLevel(getZoomLevel() - 1);
-                    return;
+                    return; // zoom is CSS-based per session (MPH)
                 } else if (keyCode == GLFW_KEY_0) {
-                    setZoomLevel(0);
-                    return;
+                    return; // zoom is CSS-based per session (MPH)
                 }
             } else if (modifiers == GLFW_MOD_ALT) {
                 if (keyCode == GLFW_KEY_LEFT && canGoBack()) {
@@ -462,10 +459,7 @@ public class MCEFBrowser extends CefBrowserOsr {
     public void sendMouseWheel(int mouseX, int mouseY, double amount, int modifiers) {
         if (browserControls) {
             if ((modifiers & GLFW_MOD_CONTROL) != 0) {
-                if (amount > 0) {
-                    if (getZoomLevel() < 9) setZoomLevel(getZoomLevel() + 1);
-                } else if (getZoomLevel() > -9) setZoomLevel(getZoomLevel() - 1);
-                return;
+                return; // zoom is CSS-based per session (MPH)
             }
         }
 
