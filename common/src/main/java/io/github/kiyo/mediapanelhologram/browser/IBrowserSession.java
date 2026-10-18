@@ -29,6 +29,12 @@ public interface IBrowserSession {
 
     int getTextureHeight();
 
+    /** Cursor shape the page last asked for (Minecraft 26.3 cursors are requested per frame). */
+    com.mojang.blaze3d.platform.cursor.CursorType getCursorType();
+
+    /** True when the page asked for the cursor to be hidden. */
+    boolean isCursorHidden();
+
     /**
      * Assumption (NOT YET javap-confirmed): backed by CefBrowser#loadURL.
      * Confirm against the CefBrowser/CefBrowserOsr javap output before

@@ -24,7 +24,6 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 
-import org.lwjgl.glfw.GLFW;
 
 import io.github.kiyo.mediapanelhologram.block.MediaMode;
 import io.github.kiyo.mediapanelhologram.block.entity.MediaSource;
@@ -500,10 +499,26 @@ public final class MediaBrowserScreen extends Screen {
         return new int[] {x, y, drawW, drawH};
     }
 
+    /** Over the page: show the cursor shape the page asked for (or hide it). Elsewhere: normal. */
+    private void applyPageCursor(GuiGraphicsExtractor g, int mouseY) {
+        IBrowserSession s = currentSession();
+        if (s == null || mouseY < TOP_BAR_HEIGHT) {
+            org.lwjgl.sdl.SDLMouse.SDL_ShowCursor();
+            return;
+        }
+        if (s.isCursorHidden()) {
+            org.lwjgl.sdl.SDLMouse.SDL_HideCursor();
+        } else {
+            org.lwjgl.sdl.SDLMouse.SDL_ShowCursor();
+            g.requestCursor(s.getCursorType());
+        }
+    }
+
     @Override
     public void extractRenderState(GuiGraphicsExtractor g0, int m0, int m1, float p0) {
         updateRepeatLabel();
         extractRenderStateBase(g0, m0, m1, p0);
+        applyPageCursor(g0, m1);
         drawPreedit(g0);
         drawShareMessage(g0);
     }
@@ -518,8 +533,7 @@ public final class MediaBrowserScreen extends Screen {
         if (mouseY < TOP_BAR_HEIGHT) {
             // The page may have hidden the cursor (e.g. a video player idling) and cannot
             // learn that the mouse moved onto our own bar, so un-hide it here every frame.
-            GLFW.glfwSetInputMode(Minecraft.getInstance().getWindow().handle(),
-                    GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+            org.lwjgl.sdl.SDLMouse.SDL_ShowCursor();
         }
         graphics.fill(0, 0, this.width, TOP_BAR_HEIGHT, 0xFF202225);
         MediaSource modeBe = findBlockEntity();
@@ -669,6 +683,16 @@ public final class MediaBrowserScreen extends Screen {
         return (int) Math.max(0, Math.min(session.getTextureHeight() - 1, localNative));
     }
 
+    /** 26.3 reports SDL button numbers (1 left, 2 middle, 3 right); MCEF expects GLFW ones (0 left, 1 right, 2 middle). */
+    private static int glfwButton(MouseButtonEvent event) {
+        return switch (event.buttonInfo().button()) {
+            case 1 -> 0;
+            case 3 -> 1;
+            case 2 -> 2;
+            default -> 0;
+        };
+    }
+
     @Override
     public void mouseMoved(double mouseX, double mouseY) {
         super.mouseMoved(mouseX, mouseY);
@@ -694,9 +718,9 @@ public final class MediaBrowserScreen extends Screen {
         }
         IBrowserSession session = currentSession();
         if (session != null && session.isTextureReady() && !remoteBusy()) {
-            relayMouse(session, 1, toBrowserX(event.x(), session), toBrowserY(event.y(), session), event.buttonInfo().button(), 0);
+            relayMouse(session, 1, toBrowserX(event.x(), session), toBrowserY(event.y(), session), glfwButton(event), 0);
             session.sendMousePress(toBrowserX(event.x(), session), toBrowserY(event.y(), session),
-                    event.buttonInfo().button());
+                    glfwButton(event));
         }
         return true;
     }
@@ -708,9 +732,9 @@ public final class MediaBrowserScreen extends Screen {
         }
         IBrowserSession session = currentSession();
         if (session != null && session.isTextureReady() && !remoteBusy()) {
-            relayMouse(session, 2, toBrowserX(event.x(), session), toBrowserY(event.y(), session), event.buttonInfo().button(), 0);
+            relayMouse(session, 2, toBrowserX(event.x(), session), toBrowserY(event.y(), session), glfwButton(event), 0);
             session.sendMouseRelease(toBrowserX(event.x(), session), toBrowserY(event.y(), session),
-                    event.buttonInfo().button());
+                    glfwButton(event));
         }
         return true;
     }
@@ -746,12 +770,12 @@ public final class MediaBrowserScreen extends Screen {
         if (composing() && isCompositionKey(event.key())) {
             return true;
         }
-        if (event.key() == GLFW.GLFW_KEY_ESCAPE) {
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
             this.onClose();
             return true;
         }
         if (this.getFocused() == urlBox) {
-            if (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) {
+            if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER) {
                 navigate();
                 return true;
             }
@@ -761,12 +785,12 @@ public final class MediaBrowserScreen extends Screen {
         if (session != null) {
             if (DEV_JS_TEST) {
                 String js = switch (event.key()) {
-                    case GLFW.GLFW_KEY_F6 -> "toggle()";
-                    case GLFW.GLFW_KEY_F7 -> "seekBy(10)";
-                    case GLFW.GLFW_KEY_F8 -> "setVolume(0.2)";
-                    case GLFW.GLFW_KEY_F9 -> "setVolume(1)";
-                    case GLFW.GLFW_KEY_F10 -> "setRate(" + nextDevRate() + ")";
-                    case GLFW.GLFW_KEY_F5 -> "seekBy(-10)";
+                    case com.mojang.blaze3d.platform.InputConstants.KEY_F6 -> "toggle()";
+                    case com.mojang.blaze3d.platform.InputConstants.KEY_F7 -> "seekBy(10)";
+                    case com.mojang.blaze3d.platform.InputConstants.KEY_F8 -> "setVolume(0.2)";
+                    case com.mojang.blaze3d.platform.InputConstants.KEY_F9 -> "setVolume(1)";
+                    case com.mojang.blaze3d.platform.InputConstants.KEY_F10 -> "setRate(" + nextDevRate() + ")";
+                    case com.mojang.blaze3d.platform.InputConstants.KEY_F5 -> "seekBy(-10)";
                     default -> null;
                 };
                 if (js != null) {
@@ -775,8 +799,8 @@ public final class MediaBrowserScreen extends Screen {
                 }
             }
             if (!remoteBusy()) {
-                relayKey(4, event.key(), event.modifiers(), event.scancode());
-                session.sendKeyPress(event.key(), event.scancode(), event.modifiers());
+                relayKey(4, event.key(), event.modifiers(), 0);
+                session.sendKeyPress(event.key(), 0, event.modifiers());
             }
         }
         return true;
@@ -792,8 +816,8 @@ public final class MediaBrowserScreen extends Screen {
         }
         IBrowserSession session = currentSession();
         if (session != null) {
-            relayKey(5, event.key(), event.modifiers(), event.scancode());
-            session.sendKeyRelease(event.key(), event.scancode(), event.modifiers());
+            relayKey(5, event.key(), event.modifiers(), 0);
+            session.sendKeyRelease(event.key(), 0, event.modifiers());
         }
         return true;
     }
@@ -829,10 +853,10 @@ public final class MediaBrowserScreen extends Screen {
 
     private static boolean isCompositionKey(int key) {
         return switch (key) {
-            case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER, GLFW.GLFW_KEY_SPACE, GLFW.GLFW_KEY_BACKSPACE,
-                    GLFW.GLFW_KEY_DELETE, GLFW.GLFW_KEY_TAB, GLFW.GLFW_KEY_ESCAPE, GLFW.GLFW_KEY_LEFT,
-                    GLFW.GLFW_KEY_RIGHT, GLFW.GLFW_KEY_UP, GLFW.GLFW_KEY_DOWN, GLFW.GLFW_KEY_HOME,
-                    GLFW.GLFW_KEY_END -> true;
+            case com.mojang.blaze3d.platform.InputConstants.KEY_RETURN, com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER, com.mojang.blaze3d.platform.InputConstants.KEY_SPACE, com.mojang.blaze3d.platform.InputConstants.KEY_BACKSPACE,
+                    com.mojang.blaze3d.platform.InputConstants.KEY_DELETE, com.mojang.blaze3d.platform.InputConstants.KEY_TAB, com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE, com.mojang.blaze3d.platform.InputConstants.KEY_LEFT,
+                    com.mojang.blaze3d.platform.InputConstants.KEY_RIGHT, com.mojang.blaze3d.platform.InputConstants.KEY_UP, com.mojang.blaze3d.platform.InputConstants.KEY_DOWN, com.mojang.blaze3d.platform.InputConstants.KEY_HOME,
+                    com.mojang.blaze3d.platform.InputConstants.KEY_END -> true;
             default -> false;
         };
     }

@@ -23,7 +23,6 @@ package com.cinemamod.mcef;
 import com.cinemamod.mcef.listeners.MCEFInitListener;
 import net.minecraft.client.Minecraft;
 import org.cef.misc.CefCursorType;
-import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -257,13 +256,21 @@ public final class MCEF {
     }
 
     /**
-     * Helper method to get a GLFW cursor handle for the given {@link CefCursorType} cursor type
+     * Not upstream (Minecraft 26.3 dropped GLFW): maps a CEF cursor type to Minecraft's cursor types
+     * via the old GLFW standard-cursor id kept in CefCursorType. Diagonal resizes have no match.
      */
-    static long getGLFWCursorHandle(CefCursorType cursorType) {
-        if (CEF_TO_GLFW_CURSORS.containsKey(cursorType)) return CEF_TO_GLFW_CURSORS.get(cursorType);
-        long glfwCursorHandle = GLFW.glfwCreateStandardCursor(cursorType.glfwId);
-        CEF_TO_GLFW_CURSORS.put(cursorType, glfwCursorHandle);
-        return glfwCursorHandle;
+    static com.mojang.blaze3d.platform.cursor.CursorType toMinecraftCursor(CefCursorType t) {
+        switch (t.glfwId) {
+            case 0x36002: return com.mojang.blaze3d.platform.cursor.CursorTypes.IBEAM;
+            case 0x36003: return com.mojang.blaze3d.platform.cursor.CursorTypes.CROSSHAIR;
+            case 0x36004: return com.mojang.blaze3d.platform.cursor.CursorTypes.POINTING_HAND;
+            case 0x36005: return com.mojang.blaze3d.platform.cursor.CursorTypes.RESIZE_EW;
+            case 0x36006: return com.mojang.blaze3d.platform.cursor.CursorTypes.RESIZE_NS;
+            case 0x36007:
+            case 0x36008:
+            case 0x36009: return com.mojang.blaze3d.platform.cursor.CursorTypes.RESIZE_ALL;
+            case 0x3600A: return com.mojang.blaze3d.platform.cursor.CursorTypes.NOT_ALLOWED;
+            default: return com.mojang.blaze3d.platform.cursor.CursorTypes.ARROW;
+        }
     }
-    private static final HashMap<CefCursorType, Long> CEF_TO_GLFW_CURSORS = new HashMap<>();
 }

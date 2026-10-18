@@ -12,7 +12,7 @@
     "has_the_recipe": {
       "trigger": "minecraft:recipe_unlocked",
       "conditions": {
-        "recipe": "mediapanelhologram:hologram_block"
+        "recipes": "mediapanelhologram:hologram_block"
       }
     }
   },

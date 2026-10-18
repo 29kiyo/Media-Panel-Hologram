@@ -41,10 +41,10 @@ public final class HologramRenderer {
         poseStack.pushPose();
         poseStack.translate(cx + s.x() / 1000f, cy + s.y() / 1000f, cz + s.z() / 1000f);
         // Quad front is +Z; rotate Y by 180 - yRot to face the camera (horizontal only).
-        poseStack.mulPose(new Quaternionf().rotationY((float) Math.toRadians(180.0 - camera.yRot)));
+        poseStack.rotate(new Quaternionf().rotationY((float) Math.toRadians(180.0 - camera.yRot)));
         if (s.pitch() != 0) {
             // TENTATIVE sign: positive pitch = top edge tilts away. Confirm in-game with the GUI.
-            poseStack.mulPose(new Quaternionf().rotationX((float) Math.toRadians(-s.pitch() / 1000.0)));
+            poseStack.rotate(new Quaternionf().rotationX((float) Math.toRadians(-s.pitch() / 1000.0)));
         }
         net.minecraft.client.renderer.SubmitNodeCollector.CustomGeometryRenderer quad = (pose, consumer) -> {
             float x0 = -w / 2f;

@@ -5,7 +5,6 @@ import java.util.List;
 
 import dev.architectury.networking.NetworkManager;
 
-import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -483,7 +482,7 @@ public class RemoteScreen extends Screen {
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (this.getFocused() == nameBox
-                && (event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER)) {
+                && (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_RETURN || event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_NUMPADENTER)) {
             rename();
             return true;
         }

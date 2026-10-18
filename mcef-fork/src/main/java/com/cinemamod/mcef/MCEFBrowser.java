@@ -21,7 +21,7 @@
 package com.cinemamod.mcef;
 
 import com.cinemamod.mcef.listeners.MCEFCursorChangeListener;
-import com.mojang.blaze3d.opengl.GlStateManager;
+import com.mojang.renderpearl.backend.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
@@ -32,7 +32,6 @@ import org.cef.event.CefKeyEvent;
 import org.cef.event.CefMouseEvent;
 import org.cef.event.CefMouseWheelEvent;
 import org.cef.misc.CefCursorType;
-import org.lwjgl.glfw.GLFW;
 import org.lwjgl.system.MemoryUtil;
 import org.lwjgl.system.libc.LibCString;
 
@@ -42,7 +41,7 @@ import java.nio.ByteBuffer;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL12.*;
 
-import static org.lwjgl.glfw.GLFW.*;
+import static com.cinemamod.mcef.GlfwCompat.*;
 import static org.lwjgl.opengl.GL11.*;
 
 /**
@@ -66,6 +65,12 @@ public class MCEFBrowser extends CefBrowserOsr {
      * the appropriate cursor based on the event.
      */
     private MCEFCursorChangeListener cursorChangeListener;
+    private volatile com.mojang.blaze3d.platform.cursor.CursorType mcCursor = com.mojang.blaze3d.platform.cursor.CursorTypes.ARROW;
+    private volatile boolean mcCursorHidden = false;
+
+    public com.mojang.blaze3d.platform.cursor.CursorType getMcCursor() { return mcCursor; }
+
+    public boolean isMcCursorHidden() { return mcCursorHidden; }
     /**
      * Whether MCEF should mimic the controls of a typical web browser.
      * E.g. CTRL+R for reload, CTRL+Left for back, CTRL+Right for forward, etc...
@@ -392,6 +397,8 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     // Inputs
     public void sendKeyPress(int keyCode, long scanCode, int modifiers) {
+        keyCode = fromSdlScancode(keyCode);
+        modifiers = fromSdlMods(modifiers);
         if (browserControls) {
             if (modifiers == GLFW_MOD_CONTROL) {
                 if (keyCode == GLFW_KEY_R) {
@@ -421,6 +428,8 @@ public class MCEFBrowser extends CefBrowserOsr {
     }
 
     public void sendKeyRelease(int keyCode, long scanCode, int modifiers) {
+        keyCode = fromSdlScancode(keyCode);
+        modifiers = fromSdlMods(modifiers);
         if (browserControls) {
             if (modifiers == GLFW_MOD_CONTROL) {
                 if (keyCode == GLFW_KEY_R) return;
@@ -439,6 +448,7 @@ public class MCEFBrowser extends CefBrowserOsr {
     }
 
     public void sendKeyTyped(char c, int modifiers) {
+        modifiers = fromSdlMods(modifiers);
         if (browserControls) {
             if (modifiers == GLFW_MOD_CONTROL) {
                 if ((int) c == GLFW_KEY_R) return;
@@ -500,6 +510,7 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     // TODO: smooth scrolling
     public void sendMouseWheel(int mouseX, int mouseY, double amount, int modifiers) {
+        modifiers = fromSdlMods(modifiers);
         if (browserControls) {
             if ((modifiers & GLFW_MOD_CONTROL) != 0) {
                 return; // zoom is CSS-based per session (MPH)
@@ -611,14 +622,11 @@ public class MCEFBrowser extends CefBrowserOsr {
         if (Minecraft.getInstance().gui.screen() == null) {
             return;
         }
-        if (cursorType == CefCursorType.NONE) {
-            GLFW.glfwSetInputMode(Minecraft.getInstance().getWindow().handle(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-        } else {
-            GLFW.glfwSetInputMode(Minecraft.getInstance().getWindow().handle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            long ch = MCEF.getGLFWCursorHandle(cursorType);
-            if (ch != 0L) {
-                GLFW.glfwSetCursor(Minecraft.getInstance().getWindow().handle(), ch);
-            }
+        // 26.3: the cursor is requested by the screen every frame (GuiGraphicsExtractor#requestCursor),
+        // so only remember what the page wants here.
+        mcCursorHidden = cursorType == CefCursorType.NONE;
+        if (!mcCursorHidden) {
+            mcCursor = MCEF.toMinecraftCursor(cursorType);
         }
     }
 }

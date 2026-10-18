@@ -179,7 +179,7 @@ public class MediaBlockScreen extends AbstractContainerScreen<MediaBlockMenu> {
     // and use the plain Screen behavior (Esc closes, widgets get the keys).
     @Override
     public boolean keyPressed(net.minecraft.client.input.KeyEvent event) {
-        if (event.key() == org.lwjgl.glfw.GLFW.GLFW_KEY_ESCAPE) {
+        if (event.key() == com.mojang.blaze3d.platform.InputConstants.KEY_ESCAPE) {
             this.onClose();
             return true;
         }

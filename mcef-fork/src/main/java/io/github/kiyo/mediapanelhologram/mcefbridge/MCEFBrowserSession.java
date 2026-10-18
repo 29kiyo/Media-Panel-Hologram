@@ -128,6 +128,16 @@ public final class MCEFBrowserSession implements IBrowserSession {
     }
 
     @Override
+    public com.mojang.blaze3d.platform.cursor.CursorType getCursorType() {
+        return browser.getMcCursor();
+    }
+
+    @Override
+    public boolean isCursorHidden() {
+        return browser.isMcCursorHidden();
+    }
+
+    @Override
     public void loadUrl(String url) {
         // ASSUMPTION, not yet javap-confirmed -- see IBrowserSession's Javadoc.
         browser.loadURL(url);

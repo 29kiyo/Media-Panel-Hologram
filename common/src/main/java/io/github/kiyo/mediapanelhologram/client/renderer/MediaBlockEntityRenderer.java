@@ -322,14 +322,14 @@ public class MediaBlockEntityRenderer implements BlockEntityRenderer<MediaBlockE
         if (facing == Direction.UP || facing == Direction.DOWN) {
             float upYaw = Direction.getYRot(SCREEN_UP_DIRECTIONS[screenUp & 3]);
             if (facing == Direction.UP) {
-                poseStack.mulPose(new Quaternionf().rotationY((float) Math.toRadians(180.0f - upYaw)));
-                poseStack.mulPose(new Quaternionf().rotationX((float) Math.toRadians(-90.0)));
+                poseStack.rotate(new Quaternionf().rotationY((float) Math.toRadians(180.0f - upYaw)));
+                poseStack.rotate(new Quaternionf().rotationX((float) Math.toRadians(-90.0)));
             } else {
-                poseStack.mulPose(new Quaternionf().rotationY((float) Math.toRadians(-upYaw)));
-                poseStack.mulPose(new Quaternionf().rotationX((float) Math.toRadians(90.0)));
+                poseStack.rotate(new Quaternionf().rotationY((float) Math.toRadians(-upYaw)));
+                poseStack.rotate(new Quaternionf().rotationX((float) Math.toRadians(90.0)));
             }
         } else {
-            poseStack.mulPose(new Quaternionf().rotationY((float) Math.toRadians(-Direction.getYRot(facing))));
+            poseStack.rotate(new Quaternionf().rotationY((float) Math.toRadians(-Direction.getYRot(facing))));
         }
         poseStack.translate(-0.5f, -0.5f, -0.5f);
     }

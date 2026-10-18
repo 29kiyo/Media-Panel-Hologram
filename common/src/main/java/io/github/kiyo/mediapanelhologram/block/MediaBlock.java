@@ -255,7 +255,7 @@ public class MediaBlock extends Block implements EntityBlock {
                         .setValue(LIGHT_LEVEL_PROPERTY, 0),
                         Block.UPDATE_CLIENTS);
                 if (!player.getInventory().add(removed)) {
-                    player.drop(removed, false);
+                    player.drop(removed, false, net.minecraft.util.Prediction.SERVER_ONLY);
                 }
             }
             return InteractionResult.SUCCESS;
