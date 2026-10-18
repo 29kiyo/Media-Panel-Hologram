@@ -37,7 +37,9 @@ jobs:
       - name: Build
         run: |
           VERSION="${{ inputs.tag }}"
-          ./gradlew build -Pmod_version="${VERSION#v}"
+          VERSION="${VERSION#v}"
+          VERSION="${VERSION%-mc*}"
+          ./gradlew build -Pmod_version="$VERSION"
       - name: Collect jars
         run: |
           mkdir dist
