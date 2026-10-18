@@ -28,6 +28,11 @@ public class CefBrowserOsr extends CefBrowser_N implements CefRenderHandler {
     protected Rectangle browser_rect_ = new Rectangle(0, 0, 1, 1); // Work around CEF issue #1437.
     private Point screenPoint_ = new Point(0, 0);
     private double scaleFactor_ = 1.0;
+
+    /** MPH: device scale factor reported to CEF via getScreenInfo (page zoom). */
+    public void setScaleFactor(double factor) {
+        scaleFactor_ = factor;
+    }
     private int depth = 32;
     private int depth_per_component = 8;
     private boolean isTransparent_;
