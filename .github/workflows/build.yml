@@ -24,8 +24,12 @@ jobs:
           if ! echo "${{ inputs.tag }}" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$'; then
             echo "Tag must look like v1.0.0"; exit 1
           fi
-          if git ls-remote --exit-code --tags origin "refs/tags/${{ inputs.tag }}" >/dev/null 2>&1; then
-            echo "Tag already exists"; exit 1
+          MC=$(grep -E '^minecraft_version' gradle.properties | sed 's/.*= *//' | tr -d '\r ')
+          TAG="${{ inputs.tag }}"
+          case "$TAG" in *-mc*) ;; *) TAG="${TAG}-mc${MC}" ;; esac
+          echo "FULL_TAG=$TAG" >> "$GITHUB_ENV"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists"; exit 1
           fi
       - uses: actions/setup-java@v4
         with:
@@ -36,7 +40,7 @@ jobs:
         run: chmod +x gradlew
       - name: Build
         run: |
-          VERSION="${{ inputs.tag }}"
+          VERSION="$FULL_TAG"
           VERSION="${VERSION#v}"
           VERSION="${VERSION%-mc*}"
           ./gradlew build -Pmod_version="$VERSION"
@@ -57,5 +61,5 @@ jobs:
           printf '%s\n' \
             'Requires: Minecraft 26.2+, Java 25, GeckoLib, Architectury API (Fabric also needs Fabric API).' \
             'The browser engine (CEF, ~124 MB) is downloaded on first launch.' > notes.md
-          gh release create "${{ inputs.tag }}" dist/* --target "${{ github.sha }}" \
-            --title "${{ inputs.tag }}" --notes-file notes.md --generate-notes $FLAGS
+          gh release create "$FULL_TAG" dist/* --target "${{ github.sha }}" \
+            --title "$FULL_TAG" --notes-file notes.md --generate-notes $FLAGS
