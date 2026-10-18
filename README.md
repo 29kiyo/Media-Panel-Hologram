@@ -36,9 +36,18 @@ Jars are written to `fabric/build/libs/` and `neoforge/build/libs/` as `mediapan
 
 See `THIRD_PARTY_NOTICES.md` and `mcef-fork/UPSTREAM.md` for details.
 
+## Supported versions
+
+| Minecraft | Loaders | Notes |
+|---|---|---|
+| 26.3 | Fabric, NeoForge | NeoForge 26.3 is still in beta. Requires Architectury API 22+. |
+| 26.2 | Fabric, NeoForge | Maintained on the `release/26.2` branch. Requires Architectury API 21. |
+
+Jars are named `mediapanelhologram-<loader>-<version>-mc<minecraft>.jar` (for example `mediapanelhologram-fabric-1.0.0-mc26.3.jar`). Use the jar that matches your Minecraft version; 26.2 jars do not run on 26.3.
+
 ## Known limitations
 
-- Page zoom is per screen (CSS zoom); Ctrl+/-/0 and Ctrl+wheel are disabled in the embedded browser.
+- Page zoom is per screen (applied as a device scale factor, with an automatic base zoom per quality preset); Ctrl+/-/0 and Ctrl+wheel are disabled in the embedded browser.
 - Cookies and logins are shared between all screens (one browser profile).
 - On the Vulkan graphics backend, browser frames and `<select>` popups are uploaded through a separate path; OpenGL is the more tested backend.
 - Screens may look jagged when viewed from far away or heavily downscaled (no mipmaps on the browser texture).

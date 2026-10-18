@@ -35,9 +35,18 @@ JDK 25 が必要です。
 
 詳細は `THIRD_PARTY_NOTICES.md` と `mcef-fork/UPSTREAM.md` を参照してください。
 
+## 対応バージョン
+
+| Minecraft | ローダー | 備考 |
+|---|---|---|
+| 26.3 | Fabric, NeoForge | NeoForge 26.3はまだbetaです。Architectury API 22以降が必要です。 |
+| 26.2 | Fabric, NeoForge | `release/26.2`ブランチで保守しています。Architectury API 21が必要です。 |
+
+jarの名前は`mediapanelhologram-<ローダー>-<バージョン>-mc<Minecraft>.jar`です(例: `mediapanelhologram-fabric-1.0.0-mc26.3.jar`)。Minecraftのバージョンに合うjarを使ってください。26.2用のjarは26.3では動きません。
+
 ## 既知の制限
 
-- ページのズームは画面ごと(CSSのzoom)です。埋め込みブラウザ内のCtrl+/-/0とCtrl+ホイールは無効です。
+- ページのズームは画面ごとです(デバイススケール係数として適用し、画質プリセットごとに基準倍率を自動設定します)。埋め込みブラウザ内のCtrl+/-/0とCtrl+ホイールは無効です。
 - CookieとログインはすべてのScreenで共有されます(ブラウザプロファイルは1つ)。
 - Vulkanバックエンドでは、ブラウザ映像と`<select>`のポップアップを別経路で転送しています。検証が進んでいるのはOpenGLです。
 - 遠くから見たときや大きく縮小されたとき、画面の縁や文字がぎざぎざに見えることがあります(ブラウザテクスチャにミップマップがないため)。
