@@ -152,7 +152,8 @@ public final class MCEFBrowserSession implements IBrowserSession {
 
     @Override
     public void setZoomLevel(double level) {
-        browser.setZoomLevel(level);
+        browser.setZoomLevel(0); // drop any saved per-host CEF zoom
+        browser.setPageScale(Math.pow(1.2, level));
     }
 
     @Override

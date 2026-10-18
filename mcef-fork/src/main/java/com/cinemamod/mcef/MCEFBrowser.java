@@ -385,9 +385,31 @@ public class MCEFBrowser extends CefBrowserOsr {
         popupRestorePending = true;
     }
 
+    // MPH: page zoom as device scale factor (physical texture size stays fixed).
+    private int physW = 1, physH = 1;
+    private double pageScale = 1.0;
+
     public void resize(int width, int height) {
-        browser_rect_.setBounds(0, 0, width, height);
-        wasResized(width, height);
+        physW = width;
+        physH = height;
+        applyView();
+    }
+
+    public void setPageScale(double requested) {
+        double s = Math.max(requested, Math.max(Math.max(physW, physH) / 16000.0, 0.05));
+        if (Math.abs(s - pageScale) < 1e-6) {
+            return;
+        }
+        pageScale = s;
+        applyView();
+    }
+
+    private void applyView() {
+        setScaleFactor(pageScale);
+        int lw = Math.max(1, (int) Math.round(physW / pageScale));
+        int lh = Math.max(1, (int) Math.round(physH / pageScale));
+        browser_rect_.setBounds(0, 0, lw, lh);
+        wasResized(lw, lh);
     }
 
     // Inputs
@@ -456,6 +478,8 @@ public class MCEFBrowser extends CefBrowserOsr {
     }
 
     public void sendMouseMove(int mouseX, int mouseY) {
+        mouseX = (int) (mouseX / pageScale);
+        mouseY = (int) (mouseY / pageScale);
         CefMouseEvent e = new CefMouseEvent(CefMouseEvent.MOUSE_MOVED, mouseX, mouseY, 0, 0, dragContext.getVirtualModifiers(btnMask));
         sendMouseEvent(e);
 
@@ -465,6 +489,8 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     // TODO: it may be necessary to add modifiers here
     public void sendMousePress(int mouseX, int mouseY, int button) {
+        mouseX = (int) (mouseX / pageScale);
+        mouseY = (int) (mouseY / pageScale);
         // for some reason, middle and right are swapped in MC
         if (button == 1) button = 2;
         else if (button == 2) button = 1;
@@ -479,6 +505,8 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     // TODO: it may be necessary to add modifiers here
     public void sendMouseRelease(int mouseX, int mouseY, int button) {
+        mouseX = (int) (mouseX / pageScale);
+        mouseY = (int) (mouseY / pageScale);
         // For some reason, middle and right are swapped in MC
         if (button == 1) button = 2;
         else if (button == 2) button = 1;
@@ -500,6 +528,8 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     // TODO: smooth scrolling
     public void sendMouseWheel(int mouseX, int mouseY, double amount, int modifiers) {
+        mouseX = (int) (mouseX / pageScale);
+        mouseY = (int) (mouseY / pageScale);
         if (browserControls) {
             if ((modifiers & GLFW_MOD_CONTROL) != 0) {
                 return; // zoom is CSS-based per session (MPH)

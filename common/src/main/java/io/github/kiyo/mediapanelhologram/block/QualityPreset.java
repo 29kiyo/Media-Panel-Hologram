@@ -5,11 +5,11 @@ package io.github.kiyo.mediapanelhologram.block;
  * the network via idMapper: DO NOT reorder without a migration plan.
  */
 public enum QualityPreset {
-    P480("480p", 854, 480, -1),
-    P720("720p", 1280, 720, 2),
-    P1080("1080p", 1920, 1080, 4),
-    P1440("1440p", 2560, 1440, 5),
-    P2160("4K", 3840, 2160, 8);
+    P480("480p", 854, 480, 0),
+    P720("720p", 1280, 720, 0),
+    P1080("1080p", 1920, 1080, 2),
+    P1440("1440p", 2560, 1440, 3),
+    P2160("4K", 3840, 2160, 5);
 
     public static final QualityPreset DEFAULT = P720;
 

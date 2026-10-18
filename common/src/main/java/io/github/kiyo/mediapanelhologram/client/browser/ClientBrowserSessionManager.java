@@ -426,7 +426,7 @@ public final class ClientBrowserSessionManager {
                     Minecraft.getInstance().execute(() -> {
                         Entry current = SESSIONS.get(pos);
                         if (current != null && current.session == session) {
-                            session.setZoomLevel(0); // reset any saved per-host CEF zoom; zoom is CSS now
+                            session.setZoomLevel(entry.zoom); // page zoom = device scale factor
                         }
                     });
                 }
@@ -891,8 +891,7 @@ public final class ClientBrowserSessionManager {
     }
 
     private static void applyCssZoom(Entry entry) {
-        entry.session.executeJavaScript("try{document.documentElement.style.zoom='"
-                + Math.pow(1.2, entry.zoom) + "';}catch(e){}");
+        entry.session.setZoomLevel(entry.zoom);
     }
 
     public static double getZoom(IBrowserSession session) {
